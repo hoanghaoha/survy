@@ -1,0 +1,2 @@
+MULTISELECT = "_"
+MATRIX = "."
