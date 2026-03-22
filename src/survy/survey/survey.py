@@ -1,10 +1,12 @@
 from pathlib import Path
 from typing import Any, Literal
 import polars
+import pyreadstat
 
 from survy.survey._utils import extract_mapping
 from survy.survey.config import MULTISELECT_COMPACT, MULTISELECT_DTYPE, SELECT_DTYPE
 from survy.survey.question import Question, QuestionType
+from survy.utils.spss import create_sps
 
 
 def _process_series(series: polars.Series, metadata: dict) -> Question:
@@ -33,6 +35,10 @@ class Survey:
         return [
             _process_series(self.df[col], self._metadata) for col in self.df.columns
         ]
+
+    @property
+    def sps(self) -> str:
+        return create_sps(self.questions)
 
     def update_metadata(self, metadata: dict[str, dict[str, Any]]):
         for id, info in metadata.items():
@@ -83,3 +89,15 @@ class Survey:
                 for op, index in question.mapping.items()
             ]
         ).write_csv(dir_path / "options_info.csv")
+
+    def to_spss(self, dir_path: str | Path):
+        if not isinstance(dir_path, Path):
+            dir_path = Path(dir_path)
+
+        number_df = self.get_df(
+            select_dtype="number", multiselect_compact=False, multiselect_dtype="number"
+        )
+        pyreadstat.write_sav(number_df, dir_path / "data.sav")
+
+        with open(dir_path / "syntax.sps", "w", encoding="utf-8") as f:
+            f.write(self.sps)
