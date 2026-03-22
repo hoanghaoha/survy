@@ -3,7 +3,6 @@ from typing import Any, Literal
 import polars
 import pyreadstat
 
-from survy.config import MULTISELECT_COMPACT, MULTISELECT_DTYPE, SELECT_DTYPE
 from survy.survey._utils import extract_mapping
 from survy.survey.question import Question, QuestionType
 from survy.utils.spss import create_sps
@@ -53,9 +52,9 @@ class Survey:
 
     def get_df(
         self,
-        select_dtype: Literal["number", "text"] = SELECT_DTYPE,
-        multiselect_compact: bool = MULTISELECT_COMPACT,
-        multiselect_dtype: Literal["number", "text"] = MULTISELECT_DTYPE,
+        select_dtype: Literal["number", "text"] = "text",
+        multiselect_compact: bool = False,
+        multiselect_dtype: Literal["number", "text"] = "number",
     ) -> polars.DataFrame:
         dfs = []
         for question in self.questions:
