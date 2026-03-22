@@ -3,8 +3,8 @@ from typing import Any, Literal
 import polars
 import pyreadstat
 
+from survy.config import MULTISELECT_COMPACT, MULTISELECT_DTYPE, SELECT_DTYPE
 from survy.survey._utils import extract_mapping
-from survy.survey.config import MULTISELECT_COMPACT, MULTISELECT_DTYPE, SELECT_DTYPE
 from survy.survey.question import Question, QuestionType
 from survy.utils.spss import create_sps
 
