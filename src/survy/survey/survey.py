@@ -38,3 +38,9 @@ class Survey:
 
     def to_dict(self):
         return [question.to_dict() for question in self.questions]
+
+    def get_df(self, numberize: bool = False):
+        if numberize:
+            dfs = [question.numberize() for question in self.questions]
+            return polars.concat(dfs, how="horizontal")
+        return self.df

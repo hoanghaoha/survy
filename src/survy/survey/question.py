@@ -2,6 +2,7 @@ import polars as pl
 from dataclasses import dataclass
 
 from survy.errors import DataStructureError, DataTypeError
+from survy.separator import MULTISELECT
 from survy.survey._utils import extract_mapping
 
 
@@ -15,6 +16,12 @@ class Question:
     @property
     def dtype(self):
         return self.values.dtype
+
+    @property
+    def is_multi(self):
+        if self.values.dtype == pl.List:
+            return True
+        return False
 
     def to_dict(self):
         return {
@@ -38,3 +45,21 @@ class Question:
                 if v not in mapping.keys():
                     raise DataStructureError(f"Value is not have mapping index: {v}")
             self.mapping = mapping
+
+    def numberize(self) -> pl.DataFrame:
+        if self.is_multi:
+            df = self.values.to_frame()
+            df = df.with_columns(
+                [
+                    pl.col(self.id)
+                    .list.contains(val)
+                    .cast(pl.Int8)
+                    .alias(f"{self.id}{MULTISELECT}{index}")
+                    for val, index in self.mapping.items()
+                ]
+            )
+            return df.drop(self.id)
+        elif self.dtype.is_numeric():
+            return self.values.to_frame()
+        else:
+            return self.values.replace_strict(self.mapping, default=None).to_frame()
