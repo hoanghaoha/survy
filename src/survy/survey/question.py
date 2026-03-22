@@ -2,6 +2,7 @@ import polars as pl
 from dataclasses import dataclass
 
 from survy.errors import DataStructureError, DataTypeError
+from survy.survey._utils import extract_mapping
 
 
 @dataclass
@@ -33,7 +34,7 @@ class Question:
         if label:
             self.label = label
         if mapping:
-            for v in set(self.values):
+            for v in extract_mapping(self.values.to_list()).keys():
                 if v not in mapping.keys():
                     raise DataStructureError(f"Value is not have mapping index: {v}")
             self.mapping = mapping

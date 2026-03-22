@@ -4,7 +4,7 @@ from itertools import chain
 
 def extract_mapping(li: list[Any | list[Any]]) -> dict:
     def _extract_list(li: list[Any]):
-        sorted_set = sorted(set(li))
+        sorted_set = sorted(set([i for i in li if i]))
         return {value: index for index, value in enumerate(sorted_set, 1)}
 
     if all([isinstance(v, list) for v in li]):
