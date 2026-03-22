@@ -1,9 +1,17 @@
+from enum import StrEnum
+from typing import Literal
 import polars as pl
 from dataclasses import dataclass
 
 from survy.errors import DataStructureError, DataTypeError
 from survy.separator import MULTISELECT
 from survy.survey._utils import extract_mapping
+
+
+class QuestionType(StrEnum):
+    SELECT = "select"
+    MULTISELECT = "multiselect"
+    NUMBER = "number"
 
 
 @dataclass
@@ -18,10 +26,13 @@ class Question:
         return self.values.dtype
 
     @property
-    def is_multi(self):
+    def qtype(self):
         if self.values.dtype == pl.List:
-            return True
-        return False
+            return QuestionType.MULTISELECT
+        elif self.values.dtype.is_numeric():
+            return QuestionType.NUMBER
+        else:
+            return QuestionType.SELECT
 
     def to_dict(self):
         return {
@@ -46,20 +57,49 @@ class Question:
                     raise DataStructureError(f"Value is not have mapping index: {v}")
             self.mapping = mapping
 
-    def numberize(self) -> pl.DataFrame:
-        if self.is_multi:
+    def get_df(
+        self, dtype: Literal["number", "text"], compact: bool = True
+    ) -> pl.DataFrame:
+        def _get_multiselect_df():
             df = self.values.to_frame()
-            df = df.with_columns(
-                [
-                    pl.col(self.id)
-                    .list.contains(val)
-                    .cast(pl.Int8)
-                    .alias(f"{self.id}{MULTISELECT}{index}")
-                    for val, index in self.mapping.items()
-                ]
-            )
-            return df.drop(self.id)
-        elif self.dtype.is_numeric():
+            if compact:
+                return df
+            else:
+                if dtype == "number":
+                    number_df = df.with_columns(
+                        [
+                            pl.col(self.id)
+                            .list.contains(val)
+                            .cast(pl.Int8)
+                            .alias(f"{self.id}{MULTISELECT}{index}")
+                            for val, index in self.mapping.items()
+                        ]
+                    )
+                    return number_df.drop(self.id)
+                else:
+                    text_df = df.with_columns(
+                        [
+                            pl.col(self.id)
+                            .list.contains(val)
+                            .cast(pl.Int8)
+                            .replace_strict({1: val}, default=None)
+                            .alias(f"{self.id}{MULTISELECT}{index}")
+                            for val, index in self.mapping.items()
+                        ]
+                    )
+                    return text_df.drop(self.id)
+
+        def _get_number_df():
             return self.values.to_frame()
-        else:
-            return self.values.replace_strict(self.mapping, default=None).to_frame()
+
+        def _get_select_df():
+            if dtype == "number":
+                return self.values.replace_strict(self.mapping, default=None).to_frame()
+            else:
+                return self.values.to_frame()
+
+        return {
+            QuestionType.MULTISELECT: _get_multiselect_df,
+            QuestionType.SELECT: _get_select_df,
+            QuestionType.NUMBER: _get_number_df,
+        }[self.qtype]()

@@ -42,7 +42,7 @@ def test_non_null_survey():
     ]
 
     assert_frame_equal(
-        survey.get_df(numberize=False),
+        survey.get_df(select_dtype="text", multiselect_compact=True),
         polars.DataFrame(
             {
                 "Q1": ["a", "b", "c", "a", "a"],
@@ -54,7 +54,21 @@ def test_non_null_survey():
     )
 
     assert_frame_equal(
-        survey.get_df(numberize=True),
+        survey.get_df(select_dtype="number", multiselect_compact=True),
+        polars.DataFrame(
+            {
+                "Q1": [1, 2, 3, 1, 1],
+                "Q2": [["x", "y", "z"], ["x", "y"], ["x"], ["y", "z"], ["z"]],
+                "Q3": [10, 12, 13, 14, 20],
+                "Q4": [1, 3, 5, 4, 2],
+            }
+        ),
+    )
+
+    assert_frame_equal(
+        survey.get_df(
+            select_dtype="number", multiselect_compact=False, multiselect_dtype="number"
+        ),
         polars.DataFrame(
             {
                 "Q1": [1, 2, 3, 1, 1],
@@ -71,6 +85,30 @@ def test_non_null_survey():
                 f"Q2{MULTISELECT}3": polars.Int8,
                 "Q3": polars.Int64,
                 "Q4": polars.Int64,
+            },
+        ),
+    )
+
+    assert_frame_equal(
+        survey.get_df(
+            select_dtype="text", multiselect_compact=False, multiselect_dtype="text"
+        ),
+        polars.DataFrame(
+            {
+                "Q1": ["a", "b", "c", "a", "a"],
+                f"Q2{MULTISELECT}1": ["x", "x", "x", None, None],
+                f"Q2{MULTISELECT}2": ["y", "y", None, "y", None],
+                f"Q2{MULTISELECT}3": ["z", None, None, "z", "z"],
+                "Q3": [10, 12, 13, 14, 20],
+                "Q4": ["abc", "def", "xyz", "ghy", "czxc"],
+            },
+            schema={
+                "Q1": polars.String,
+                f"Q2{MULTISELECT}1": polars.String,
+                f"Q2{MULTISELECT}2": polars.String,
+                f"Q2{MULTISELECT}3": polars.String,
+                "Q3": polars.Int64,
+                "Q4": polars.String,
             },
         ),
     )
@@ -94,7 +132,7 @@ def test_have_null_survey():
             "id": "Q1",
             "label": "Q1",
             "mapping": {"a": 1, "b": 2, "c": 3},
-            "values": ["a", "b", "c", "a", ""],
+            "values": ["a", "b", "c", "a", None],
         },
         {
             "id": "Q2",
@@ -112,10 +150,10 @@ def test_have_null_survey():
     ]
 
     assert_frame_equal(
-        survey.get_df(numberize=False),
+        survey.get_df(select_dtype="text", multiselect_compact=True),
         polars.DataFrame(
             {
-                "Q1": ["a", "b", "c", "a", ""],
+                "Q1": ["a", "b", "c", "a", None],
                 "Q2": [["x", "y", "z"], ["x", "y"], ["x"], ["y", "z"], ["z"]],
                 "Q3": [10, 12, 13, 14, None],
                 "Q4": ["abc", "def", "xyz", "ghy", None],
@@ -124,7 +162,9 @@ def test_have_null_survey():
     )
 
     assert_frame_equal(
-        survey.get_df(numberize=True),
+        survey.get_df(
+            select_dtype="number", multiselect_compact=False, multiselect_dtype="number"
+        ),
         polars.DataFrame(
             {
                 "Q1": [1, 2, 3, 1, None],
@@ -141,6 +181,30 @@ def test_have_null_survey():
                 f"Q2{MULTISELECT}3": polars.Int8,
                 "Q3": polars.Int64,
                 "Q4": polars.Int64,
+            },
+        ),
+    )
+
+    assert_frame_equal(
+        survey.get_df(
+            select_dtype="text", multiselect_compact=False, multiselect_dtype="text"
+        ),
+        polars.DataFrame(
+            {
+                "Q1": ["a", "b", "c", "a", None],
+                f"Q2{MULTISELECT}1": ["x", "x", "x", None, None],
+                f"Q2{MULTISELECT}2": ["y", "y", None, "y", None],
+                f"Q2{MULTISELECT}3": ["z", None, None, "z", "z"],
+                "Q3": [10, 12, 13, 14, None],
+                "Q4": ["abc", "def", "xyz", "ghy", None],
+            },
+            schema={
+                "Q1": polars.String,
+                f"Q2{MULTISELECT}1": polars.String,
+                f"Q2{MULTISELECT}2": polars.String,
+                f"Q2{MULTISELECT}3": polars.String,
+                "Q3": polars.Int64,
+                "Q4": polars.String,
             },
         ),
     )
