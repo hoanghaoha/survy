@@ -42,7 +42,11 @@ class Survey:
 
     def update_metadata(self, metadata: dict[str, dict[str, Any]]):
         for id, info in metadata.items():
-            self._metadata[id] = info
+            try:
+                _process_series(self.df[id], info)
+                self._metadata[id] = info
+            except Exception as e:
+                raise e
 
     def to_dict(self):
         return [question.to_dict() for question in self.questions]
