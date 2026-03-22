@@ -1,8 +1,25 @@
-from typing import Any
+from typing import Any, Literal
 import polars
 
 from survy.survey._utils import extract_mapping
-from survy.survey.question import Question
+from survy.survey.config import MULTISELECT_COMPACT, MULTISELECT_DTYPE, SELECT_DTYPE
+from survy.survey.question import Question, QuestionType
+
+
+def _process_series(series: polars.Series, metadata: dict) -> Question:
+    mapping = {} if series.dtype.is_numeric() else extract_mapping(series.to_list())
+    values = series.replace({"": None}) if series.dtype == polars.String else series
+    question = Question(
+        id=series.name,
+        label=series.name,
+        values=values,
+        mapping=mapping,
+    )
+    metadata = metadata.get(series.name, {})
+    question.update(
+        label=metadata.get("label", ""), mapping=metadata.get("mapping", {})
+    )
+    return question
 
 
 class Survey:
@@ -12,25 +29,9 @@ class Survey:
 
     @property
     def questions(self) -> list[Question]:
-        results = []
-        for col in self.df.columns:
-            series = self.df[col]
-            mapping = (
-                {} if series.dtype.is_numeric() else extract_mapping(series.to_list())
-            )
-            question = Question(
-                id=series.name,
-                label=series.name,
-                mapping=mapping,
-                values=series,
-            )
-            metadata = self._metadata.get(series.name, {})
-            question.update(
-                label=metadata.get("label", ""), mapping=metadata.get("mapping", {})
-            )
-            results.append(question)
-
-        return results
+        return [
+            _process_series(self.df[col], self._metadata) for col in self.df.columns
+        ]
 
     def update_metadata(self, metadata: dict[str, dict[str, Any]]):
         for id, info in metadata.items():
@@ -39,8 +40,18 @@ class Survey:
     def to_dict(self):
         return [question.to_dict() for question in self.questions]
 
-    def get_df(self, numberize: bool = False):
-        if numberize:
-            dfs = [question.numberize() for question in self.questions]
-            return polars.concat(dfs, how="horizontal")
-        return self.df
+    def get_df(
+        self,
+        select_dtype: Literal["number", "text"] = SELECT_DTYPE,
+        multiselect_compact: bool = MULTISELECT_COMPACT,
+        multiselect_dtype: Literal["number", "text"] = MULTISELECT_DTYPE,
+    ):
+        dfs = []
+        for question in self.questions:
+            if question.qtype == QuestionType.MULTISELECT:
+                dfs.append(question.get_df(multiselect_dtype, multiselect_compact))
+            elif question.qtype == QuestionType.SELECT:
+                dfs.append(question.get_df(select_dtype))
+            else:
+                dfs.append(question.get_df("number"))
+        return polars.concat(dfs, how="horizontal")
