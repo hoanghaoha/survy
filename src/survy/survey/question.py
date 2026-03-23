@@ -1,25 +1,23 @@
-from enum import StrEnum
 from typing import Literal
-import polars as pl
 from dataclasses import dataclass
 
-from survy.errors import DataStructureError, DataTypeError
+import polars
+
+from survy.errors import DataStructureError, QuestionTypeError
 from survy.separator import MULTISELECT
-from survy.survey._utils import extract_mapping
-
-
-class QuestionType(StrEnum):
-    SELECT = "select"
-    MULTISELECT = "multiselect"
-    NUMBER = "number"
+from survy.survey._utils import QuestionType
+from survy.utils.functions import extract_mapping
 
 
 @dataclass
 class Question:
-    id: str
     label: str
     mapping: dict[str, int]
-    values: pl.Series
+    values: polars.Series
+
+    @property
+    def id(self):
+        return self.values.name
 
     @property
     def dtype(self):
@@ -27,12 +25,17 @@ class Question:
 
     @property
     def qtype(self):
-        if self.values.dtype == pl.List:
+        if self.values.dtype == polars.List:
             return QuestionType.MULTISELECT
         elif self.values.dtype.is_numeric():
             return QuestionType.NUMBER
-        else:
+        elif self.values.dtype == polars.String:
             return QuestionType.SELECT
+        raise QuestionTypeError(f"Can not identify question type: {self.values.dtype}")
+
+    @property
+    def base(self):
+        return len([i for i in self.values.to_list() if i])
 
     def to_dict(self):
         return {
@@ -43,13 +46,7 @@ class Question:
         }
 
     def update(self, label: str = "", mapping: dict[str, int] = {}):
-        if not isinstance(label, str):
-            raise DataTypeError("Label required to be str")
-
-        if not isinstance(mapping, dict):
-            raise DataTypeError("Mapping required to be str")
-
-        if label:
+        if label != "" and isinstance(label, str):
             self.label = label
         if mapping:
             for v in extract_mapping(self.values.to_list()).keys():
@@ -59,7 +56,7 @@ class Question:
 
     def get_df(
         self, dtype: Literal["number", "text"], compact: bool = True
-    ) -> pl.DataFrame:
+    ) -> polars.DataFrame:
         def _get_multiselect_df():
             df = self.values.to_frame()
             if compact:
@@ -68,9 +65,9 @@ class Question:
                 if dtype == "number":
                     number_df = df.with_columns(
                         [
-                            pl.col(self.id)
+                            polars.col(self.id)
                             .list.contains(val)
-                            .cast(pl.Int8)
+                            .cast(polars.Int8)
                             .alias(f"{self.id}{MULTISELECT}{index}")
                             for val, index in self.mapping.items()
                         ]
@@ -79,9 +76,9 @@ class Question:
                 else:
                     text_df = df.with_columns(
                         [
-                            pl.col(self.id)
+                            polars.col(self.id)
                             .list.contains(val)
-                            .cast(pl.Int8)
+                            .cast(polars.Int8)
                             .replace_strict({1: val}, default=None)
                             .alias(f"{self.id}{MULTISELECT}{index}")
                             for val, index in self.mapping.items()
