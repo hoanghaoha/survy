@@ -20,6 +20,9 @@ non_null_df = polars.DataFrame(
 def test_non_null_survey():
     survey = Survey(questions=get_question_from_df(non_null_df))
 
+    assert isinstance(survey.get_info(), list)
+    assert isinstance(survey.get_info(as_yml=True), str)
+
     assert survey.to_dict() == [
         {
             "id": "Q1",
@@ -215,10 +218,10 @@ def test_update_survey():
     survey = Survey(questions=get_question_from_df(non_null_df))
 
     survey.update(
-        {
-            "Q1": {"label": "Question 1", "mapping": {"b": 1, "a": 2, "c": 3}},
-            "Q2": {"label": "Question 2", "mapping": {"y": 1, "x": 2, "z": 3}},
-        },
+        [
+            {"id": "Q1", "label": "Question 1", "mapping": {"b": 1, "a": 2, "c": 3}},
+            {"id": "Q2", "label": "Question 2", "mapping": {"y": 1, "x": 2, "z": 3}},
+        ]
     )
 
     assert survey.to_dict() == [
@@ -245,8 +248,57 @@ def test_update_survey():
 
     with pytest.raises(DataStructureError):
         survey.update(
-            {
-                "Q1": {"label": "Question 1", "mapping": {"a": 2, "c": 3}},
-            },
+            [
+                {"id": "Q1", "label": "Question 1", "mapping": {"a": 2, "c": 3}},
+            ]
+        )
+        assert survey.questions
+
+
+def test_update_survey_by_yml():
+    survey = Survey(questions=get_question_from_df(non_null_df))
+
+    survey.update_by_yml("""
+- id: Q1
+  label: Question 1
+  mapping:
+    a: 2
+    b: 1
+    c: 3
+- id: Q2
+  label: Question 2
+  mapping:
+    x: 2
+    y: 1
+    z: 3
+""")
+
+    assert survey.to_dict() == [
+        {
+            "id": "Q1",
+            "label": "Question 1",
+            "mapping": {"a": 2, "b": 1, "c": 3},
+            "values": ["a", "b", "c", "a", "a"],
+        },
+        {
+            "id": "Q2",
+            "label": "Question 2",
+            "mapping": {"x": 2, "y": 1, "z": 3},
+            "values": [["x", "y", "z"], ["x", "y"], ["x"], ["y", "z"], ["z"]],
+        },
+        {"id": "Q3", "label": "Q3", "mapping": {}, "values": [10, 12, 13, 14, 20]},
+        {
+            "id": "Q4",
+            "label": "Q4",
+            "mapping": {"abc": 1, "czxc": 2, "def": 3, "ghy": 4, "xyz": 5},
+            "values": ["abc", "def", "xyz", "ghy", "czxc"],
+        },
+    ]
+
+    with pytest.raises(DataStructureError):
+        survey.update(
+            [
+                {"id": "Q1", "label": "Question 1", "mapping": {"a": 2, "c": 3}},
+            ]
         )
         assert survey.questions

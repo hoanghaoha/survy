@@ -18,16 +18,6 @@ class Survey:
     def __getitem__(self, question_id: str):
         return {question.id: question for question in self.questions}[question_id]
 
-    def update(self, metadata: dict[str, dict[str, Any]]):
-        for id, info in metadata.items():
-            question = self[id]
-            question.update(
-                label=info.get("label", ""), mapping=info.get("mapping", {})
-            )
-
-    def to_dict(self):
-        return [question.to_dict() for question in self.questions]
-
     def get_df(
         self,
         select_dtype: Literal["number", "text"] = "text",
@@ -43,6 +33,45 @@ class Survey:
             else:
                 dfs.append(question.get_df("number"))
         return polars.concat(dfs, how="horizontal")
+
+    def get_info(self, as_yml: bool = False) -> list | str:
+        info = {}
+        for question in self.questions:
+            info[question.id] = {"id": question.id, "label": question.label}
+            if question.mapping:
+                info[question.id].update({"mapping": question.mapping})
+
+        result = [i for _, i in info.items()]
+        if as_yml:
+            import yaml
+
+            return yaml.dump(result, default_flow_style=False, allow_unicode=True)
+
+        return result
+
+    def update(self, metadata: list[dict[str, Any]]):
+        for info in metadata:
+            try:
+                question = self[info["id"]]
+                question.update(
+                    label=info.get("label", ""), mapping=info.get("mapping", {})
+                )
+            except Exception as e:
+                raise e
+
+    def update_by_yml(self, yml: str | Path):
+        import yaml
+
+        path = Path(yml)
+        if path.is_file():
+            with open(yml, "r") as f:
+                metadata = yaml.safe_load(f)
+        else:
+            metadata = yaml.safe_load(str(yml))
+        self.update(metadata)
+
+    def to_dict(self):
+        return [question.to_dict() for question in self.questions]
 
     def to_csv(self, dir_path: str | Path):
         if not isinstance(dir_path, Path):
