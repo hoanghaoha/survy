@@ -3,49 +3,27 @@ from typing import Any, Literal
 import polars
 import pyreadstat
 
-from survy.survey._utils import extract_mapping
 from survy.survey.question import Question, QuestionType
 from survy.utils.spss import create_sps
 
 
-def _process_series(series: polars.Series, metadata: dict) -> Question:
-    mapping = {} if series.dtype.is_numeric() else extract_mapping(series.to_list())
-    values = series.replace({"": None}) if series.dtype == polars.String else series
-    question = Question(
-        id=series.name,
-        label=series.name,
-        values=values,
-        mapping=mapping,
-    )
-    metadata = metadata.get(series.name, {})
-    question.update(
-        label=metadata.get("label", ""), mapping=metadata.get("mapping", {})
-    )
-    return question
-
-
 class Survey:
-    def __init__(self, df: polars.DataFrame):
-        self.df = df
-        self._metadata = {}
-
-    @property
-    def questions(self) -> list[Question]:
-        return [
-            _process_series(self.df[col], self._metadata) for col in self.df.columns
-        ]
+    def __init__(self, questions: list[Question]):
+        self.questions = questions
 
     @property
     def sps(self) -> str:
         return create_sps(self.questions)
 
-    def update_metadata(self, metadata: dict[str, dict[str, Any]]):
+    def __getitem__(self, question_id: str):
+        return {question.id: question for question in self.questions}[question_id]
+
+    def update(self, metadata: dict[str, dict[str, Any]]):
         for id, info in metadata.items():
-            try:
-                _process_series(self.df[id], info)
-                self._metadata[id] = info
-            except Exception as e:
-                raise e
+            question = self[id]
+            question.update(
+                label=info.get("label", ""), mapping=info.get("mapping", {})
+            )
 
     def to_dict(self):
         return [question.to_dict() for question in self.questions]

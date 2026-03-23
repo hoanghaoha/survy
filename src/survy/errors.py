@@ -12,3 +12,7 @@ class DataTypeError(BaseError):
 
 class DataStructureError(BaseError):
     pass
+
+
+class QuestionTypeError(BaseError):
+    pass

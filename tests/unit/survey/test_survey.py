@@ -3,6 +3,7 @@ import polars
 from polars.testing import assert_frame_equal
 
 from survy.errors import DataStructureError
+from survy.io.csv.functions import get_question_from_df
 from survy.separator import MULTISELECT
 from survy.survey.survey import Survey
 
@@ -17,7 +18,7 @@ non_null_df = polars.DataFrame(
 
 
 def test_non_null_survey():
-    survey = Survey(df=non_null_df)
+    survey = Survey(questions=get_question_from_df(non_null_df))
 
     assert survey.to_dict() == [
         {
@@ -125,7 +126,7 @@ have_null_df = polars.DataFrame(
 
 
 def test_have_null_survey():
-    survey = Survey(df=have_null_df)
+    survey = Survey(questions=get_question_from_df(have_null_df))
 
     assert survey.to_dict() == [
         {
@@ -211,9 +212,9 @@ def test_have_null_survey():
 
 
 def test_update_survey():
-    survey = Survey(df=non_null_df)
+    survey = Survey(questions=get_question_from_df(non_null_df))
 
-    survey.update_metadata(
+    survey.update(
         {
             "Q1": {"label": "Question 1", "mapping": {"b": 1, "a": 2, "c": 3}},
             "Q2": {"label": "Question 2", "mapping": {"y": 1, "x": 2, "z": 3}},
@@ -243,7 +244,7 @@ def test_update_survey():
     ]
 
     with pytest.raises(DataStructureError):
-        survey.update_metadata(
+        survey.update(
             {
                 "Q1": {"label": "Question 1", "mapping": {"a": 2, "c": 3}},
             },
