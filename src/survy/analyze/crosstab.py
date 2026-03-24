@@ -1,4 +1,6 @@
 import polars
+from copy import deepcopy
+
 from survy.errors import DataTypeError
 from survy.survey._utils import QuestionType
 from survy.survey.question import Question
@@ -29,8 +31,27 @@ def _crosstab_category(
         aggregate_function=polars.element().n_unique(),
     ).fill_null(0)
 
+    row_total = polars.DataFrame(
+        {
+            row.id: list(row.sub_bases.keys()) + ["Total"],
+            "Total": list(row.sub_bases.values()) + [row.base],
+        },
+    )
+
+    col_total = polars.DataFrame(col.sub_bases)
+
+    result = polars.concat(
+        [
+            result,
+            col_total.with_columns(polars.lit("Total").alias(row.id)).select(
+                result.columns
+            ),
+        ],
+        how="vertical_relaxed",
+    ).join(row_total, on=row.id, how="left")
+
     if percent:
-        col_sub_bases = col.sub_bases
+        col_sub_bases = {**col.sub_bases, **{"Total": col.base}}
         result = result.with_columns(
             [
                 polars.col(col) / col_sub_bases[col]
@@ -72,18 +93,31 @@ def crosstab(
     filter: Question | None = None,
     as_num: bool = False,
     as_percent: bool = False,
-):
+) -> dict[str, polars.DataFrame]:
+    col = deepcopy(col)
+    row = deepcopy(row)
+    filter = deepcopy(filter)
+
     if filter is None:
         filter = _default_filter(col.len)
 
+    if filter.id in [col.id, row.id]:
+        filter.values = filter.values.rename(filter.values.name + "_FILTER")
+
     if filter.qtype == QuestionType.NUMBER:
         raise DataTypeError("Can not filter by NUMBER")
+
+    if col.qtype == QuestionType.NUMBER:
+        raise DataTypeError("Can not categorize by NUMBER")
+
+    if row.qtype == QuestionType.NUMBER:
+        as_num = True
 
     results = {}
 
     col_df = _get_df(col, as_num=False)
     row_df = _get_df(row, as_num)
-    filter_df = _get_df(filter)
+    filter_df = _get_df(filter, as_num=False)
     df = col_df.join(row_df, on="ID", how="left").join(filter_df, on="ID", how="left")
 
     for option, _ in filter.mapping.items():
