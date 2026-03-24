@@ -2,6 +2,10 @@ class BaseError(Exception):
     pass
 
 
+class ParseError(BaseError):
+    pass
+
+
 class FileTypeError(BaseError):
     pass
 

@@ -1,10 +1,13 @@
 import polars as pl
 from typing import Any, Iterable
 
-from survy.separator import MULTISELECT
+from survy.separator import MATRIX
+from survy.utils.parse_id import parse_id
 
 
-def process_raw_data(raw_data: dict[str, list[Any]]) -> pl.DataFrame:
+def process_raw_df(
+    raw_data: dict[str, list[Any]], name_pattern: str = "id(.matrix)?(_multi)?"
+) -> pl.DataFrame:
     def _process_list(li: Iterable):
         return sorted([i for i in li if i])
 
@@ -12,15 +15,19 @@ def process_raw_data(raw_data: dict[str, list[Any]]) -> pl.DataFrame:
     multiselect_qids = set()
 
     for name, data in raw_data.items():
-        if MULTISELECT in name:
-            qid, _ = name.split(MULTISELECT)
+        parsed_items = parse_id(name, name_pattern)
+        qid = parsed_items["id"]
+        matrix_id = parsed_items.get("matrix")
+        multi_id = parsed_items.get("multi")
 
+        if matrix_id:
+            qid = f"{qid}{MATRIX}{matrix_id}"
+
+        if multi_id:
             multiselect_qids.add(qid)
-
             results.setdefault(qid, [])
             results[qid].append(data)
         else:
-            qid = name
             results[qid] = data
 
     for qid, data in results.items():
