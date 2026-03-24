@@ -1,11 +1,11 @@
 import polars
 from polars.testing import assert_frame_equal
 
-from survy.io._utils import process_raw_df
+from survy.io.polars import read_polars
 from survy.separator import MULTISELECT
 
 
-def test_proces_raw_data():
+def test_read_polars():
     raw_data = {
         "Q1": ["a", "b", "c", "a", "a"],
         f"Q2{MULTISELECT}1": ["x", "x", "x", "", ""],
@@ -15,7 +15,7 @@ def test_proces_raw_data():
         "Q4": ["abc", "def", "xyz", "ghy", "czxc"],
     }
 
-    df = polars.DataFrame(
+    expected_df = polars.DataFrame(
         {
             "Q1": ["a", "b", "c", "a", "a"],
             "Q2": [["x", "y", "z"], ["x", "y"], ["x"], ["y", "z"], ["z"]],
@@ -24,4 +24,7 @@ def test_proces_raw_data():
         }
     )
 
-    assert_frame_equal(process_raw_df(raw_data), df)
+    assert_frame_equal(
+        read_polars(polars.DataFrame(raw_data)).get_df(multiselect_compact=True),
+        expected_df,
+    )

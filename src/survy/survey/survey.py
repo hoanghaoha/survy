@@ -21,7 +21,7 @@ class Survey:
     def get_df(
         self,
         select_dtype: Literal["number", "text"] = "text",
-        multiselect_compact: bool = False,
+        multiselect_compact: bool = True,
         multiselect_dtype: Literal["number", "text"] = "number",
     ) -> polars.DataFrame:
         dfs = []

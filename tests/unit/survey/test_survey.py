@@ -3,9 +3,8 @@ import polars
 from polars.testing import assert_frame_equal
 
 from survy.errors import DataStructureError
-from survy.io.csv.functions import get_question_from_df
+from survy.io.polars import read_polars
 from survy.separator import MULTISELECT
-from survy.survey.survey import Survey
 
 non_null_df = polars.DataFrame(
     {
@@ -18,7 +17,7 @@ non_null_df = polars.DataFrame(
 
 
 def test_non_null_survey():
-    survey = Survey(questions=get_question_from_df(non_null_df))
+    survey = read_polars(non_null_df)
 
     assert isinstance(survey.get_info(), list)
     assert isinstance(survey.get_info(as_yml=True), str)
@@ -130,7 +129,7 @@ have_null_df = polars.DataFrame(
 
 
 def test_have_null_survey():
-    survey = Survey(questions=get_question_from_df(have_null_df))
+    survey = read_polars(have_null_df)
 
     assert isinstance(survey.get_info(), list)
     assert isinstance(survey.get_info(as_yml=True), str)
@@ -220,7 +219,7 @@ def test_have_null_survey():
 
 
 def test_update_survey():
-    survey = Survey(questions=get_question_from_df(non_null_df))
+    survey = read_polars(non_null_df)
 
     survey.update(
         [
@@ -265,7 +264,7 @@ def test_update_survey():
 
 
 def test_update_survey_by_yml():
-    survey = Survey(questions=get_question_from_df(non_null_df))
+    survey = read_polars(non_null_df)
 
     survey.update_by_yml("""
 - id: Q1
