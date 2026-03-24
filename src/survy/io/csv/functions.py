@@ -4,7 +4,7 @@ from typing import Any
 import polars
 
 from survy.errors import FileTypeError
-from survy.io._utils import process_raw_data
+from survy.io._utils import process_raw_df
 from survy.survey.question import Question
 from survy.survey.survey import Survey
 from survy.utils.functions import extract_mapping
@@ -42,4 +42,4 @@ def read_csv(path: str | Path) -> Survey:
 
     raw_data = _extract_raw_data_from_path(path)
 
-    return Survey(questions=get_question_from_df(process_raw_data(raw_data)))
+    return Survey(questions=get_question_from_df(process_raw_df(raw_data)))

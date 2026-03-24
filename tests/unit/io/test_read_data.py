@@ -1,7 +1,7 @@
 import polars
 from polars.testing import assert_frame_equal
 
-from survy.io._utils import process_raw_data
+from survy.io._utils import process_raw_df
 from survy.separator import MULTISELECT
 
 
@@ -24,4 +24,4 @@ def test_proces_raw_data():
         }
     )
 
-    assert_frame_equal(process_raw_data(raw_data), df)
+    assert_frame_equal(process_raw_df(raw_data), df)
