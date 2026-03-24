@@ -22,6 +22,7 @@ def test_non_null_survey():
 
     assert isinstance(survey.get_info(), list)
     assert isinstance(survey.get_info(as_yml=True), str)
+    assert isinstance(survey.sps, str)
 
     assert survey.to_dict() == [
         {
@@ -130,6 +131,10 @@ have_null_df = polars.DataFrame(
 
 def test_have_null_survey():
     survey = Survey(questions=get_question_from_df(have_null_df))
+
+    assert isinstance(survey.get_info(), list)
+    assert isinstance(survey.get_info(as_yml=True), str)
+    assert isinstance(survey.sps, str)
 
     assert survey.to_dict() == [
         {
@@ -246,6 +251,10 @@ def test_update_survey():
         },
     ]
 
+    assert isinstance(survey.get_info(), list)
+    assert isinstance(survey.get_info(as_yml=True), str)
+    assert isinstance(survey.sps, str)
+
     with pytest.raises(DataStructureError):
         survey.update(
             [
@@ -294,6 +303,10 @@ def test_update_survey_by_yml():
             "values": ["abc", "def", "xyz", "ghy", "czxc"],
         },
     ]
+
+    assert isinstance(survey.get_info(), list)
+    assert isinstance(survey.get_info(as_yml=True), str)
+    assert isinstance(survey.sps, str)
 
     with pytest.raises(DataStructureError):
         survey.update(
