@@ -16,15 +16,15 @@ class Question:
     values: polars.Series
 
     @property
-    def id(self):
+    def id(self) -> str:
         return self.values.name
 
     @property
-    def dtype(self):
+    def dtype(self) -> polars.DataType:
         return self.values.dtype
 
     @property
-    def qtype(self):
+    def qtype(self) -> QuestionType:
         if self.values.dtype == polars.List:
             return QuestionType.MULTISELECT
         elif self.values.dtype.is_numeric():
@@ -34,10 +34,32 @@ class Question:
         raise QuestionTypeError(f"Can not identify question type: {self.values.dtype}")
 
     @property
-    def base(self):
+    def base(self) -> int:
         return len([i for i in self.values.to_list() if i])
 
-    def to_dict(self):
+    @property
+    def len(self) -> int:
+        return self.values.shape[0]
+
+    @property
+    def sub_bases(self) -> dict[str, int]:
+        if self.qtype == QuestionType.MULTISELECT:
+            df = self.get_df(dtype="text", compact=True).explode(self.id)
+        else:
+            df = self.get_df(dtype="text")
+
+        result = (
+            df.filter(polars.col(self.id).is_not_null())
+            .group_by(self.id)
+            .agg(polars.col(self.id).count().alias("base"))
+            .rename({self.id: "option"})
+            .sort("option")
+            .to_dicts()
+        )
+
+        return {item["option"]: item["base"] for item in result}
+
+    def to_dict(self) -> dict:
         return {
             "id": self.id,
             "label": self.label,
@@ -45,7 +67,7 @@ class Question:
             "values": self.values.to_list(),
         }
 
-    def update(self, label: str = "", mapping: dict[str, int] = {}):
+    def update(self, label: str = "", mapping: dict[str, int] = {}) -> None:
         if label != "" and isinstance(label, str):
             self.label = label
         if mapping:
@@ -55,7 +77,7 @@ class Question:
             self.mapping = mapping
 
     def get_df(
-        self, dtype: Literal["number", "text"], compact: bool = True
+        self, dtype: Literal["number", "text"] = "text", compact: bool = True
     ) -> polars.DataFrame:
         def _get_multiselect_df():
             df = self.values.to_frame()
