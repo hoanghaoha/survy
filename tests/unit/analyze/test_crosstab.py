@@ -60,46 +60,88 @@ def test_crosstab_category():
     # select vs multiselect
     assert crosstab(survey["Q1"], survey["Q2"], as_percent=False)
     assert crosstab(survey["Q1"], survey["Q2"], as_percent=True)
+    assert crosstab(survey["Q1"], survey["Q2"], as_percent=False, sig_level=0.05)
+    assert crosstab(survey["Q1"], survey["Q2"], as_percent=True, sig_level=0.05)
     assert crosstab(survey["Q1"], survey["Q2"], as_num=True)
 
     # select vs multiselect, filter by select
     assert crosstab(survey["Q1"], survey["Q2"], survey["Q3"], as_percent=False)
     assert crosstab(survey["Q1"], survey["Q2"], survey["Q3"], as_percent=True)
+    assert crosstab(
+        survey["Q1"], survey["Q2"], survey["Q3"], as_percent=False, sig_level=0.05
+    )
+    assert crosstab(
+        survey["Q1"], survey["Q2"], survey["Q3"], as_percent=True, sig_level=0.05
+    )
     assert crosstab(survey["Q1"], survey["Q2"], survey["Q3"], as_num=True)
 
     # select vs multiselect, filter by multiselect
     assert crosstab(survey["Q1"], survey["Q2"], survey["Q3"], as_percent=False)
     assert crosstab(survey["Q1"], survey["Q2"], survey["Q3"], as_percent=True)
+    assert crosstab(
+        survey["Q1"], survey["Q2"], survey["Q3"], as_percent=False, sig_level=0.05
+    )
+    assert crosstab(
+        survey["Q1"], survey["Q2"], survey["Q3"], as_percent=True, sig_level=0.05
+    )
     assert crosstab(survey["Q1"], survey["Q2"], survey["Q3"], as_num=True)
 
     # select vs select
     assert crosstab(survey["Q1"], survey["Q3"], as_percent=False)
     assert crosstab(survey["Q1"], survey["Q3"], as_percent=True)
+    assert crosstab(survey["Q1"], survey["Q3"], as_percent=False, sig_level=0.05)
+    assert crosstab(survey["Q1"], survey["Q3"], as_percent=True, sig_level=0.05)
     assert crosstab(survey["Q1"], survey["Q3"], as_num=True)
 
     # select vs select, filter by select
     assert crosstab(survey["Q1"], survey["Q3"], survey["Q3"], as_percent=False)
     assert crosstab(survey["Q1"], survey["Q3"], survey["Q3"], as_percent=True)
+    assert crosstab(
+        survey["Q1"], survey["Q3"], survey["Q3"], as_percent=False, sig_level=0.05
+    )
+    assert crosstab(
+        survey["Q1"], survey["Q3"], survey["Q3"], as_percent=True, sig_level=0.05
+    )
     assert crosstab(survey["Q1"], survey["Q3"], survey["Q3"], as_num=True)
 
     # select vs select, filter by multiselect
     assert crosstab(survey["Q1"], survey["Q3"], survey["Q2"], as_percent=False)
     assert crosstab(survey["Q1"], survey["Q3"], survey["Q2"], as_percent=True)
+    assert crosstab(
+        survey["Q1"], survey["Q3"], survey["Q2"], as_percent=False, sig_level=0.05
+    )
+    assert crosstab(
+        survey["Q1"], survey["Q3"], survey["Q2"], as_percent=True, sig_level=0.05
+    )
     assert crosstab(survey["Q1"], survey["Q3"], survey["Q2"], as_num=True)
 
     # multiselect vs multiselect
     assert crosstab(survey["Q2"], survey["Q4"], as_percent=False)
     assert crosstab(survey["Q2"], survey["Q4"], as_percent=True)
+    assert crosstab(survey["Q2"], survey["Q4"], as_percent=False, sig_level=0.05)
+    assert crosstab(survey["Q2"], survey["Q4"], as_percent=True, sig_level=0.05)
     assert crosstab(survey["Q2"], survey["Q4"], as_num=True)
 
     # multiselect vs multiselect, filter by select
     assert crosstab(survey["Q2"], survey["Q4"], survey["Q1"], as_percent=False)
     assert crosstab(survey["Q2"], survey["Q4"], survey["Q1"], as_percent=True)
+    assert crosstab(
+        survey["Q2"], survey["Q4"], survey["Q1"], as_percent=False, sig_level=0.05
+    )
+    assert crosstab(
+        survey["Q2"], survey["Q4"], survey["Q1"], as_percent=True, sig_level=0.05
+    )
     assert crosstab(survey["Q2"], survey["Q4"], survey["Q1"], as_num=True)
 
     # multiselect vs multiselect, filter by multiselect
     assert crosstab(survey["Q2"], survey["Q4"], survey["Q2"], as_percent=False)
     assert crosstab(survey["Q2"], survey["Q4"], survey["Q2"], as_percent=True)
+    assert crosstab(
+        survey["Q2"], survey["Q4"], survey["Q2"], as_percent=False, sig_level=0.05
+    )
+    assert crosstab(
+        survey["Q2"], survey["Q4"], survey["Q2"], as_percent=True, sig_level=0.05
+    )
     assert crosstab(survey["Q2"], survey["Q4"], survey["Q2"], as_num=True)
 
 
