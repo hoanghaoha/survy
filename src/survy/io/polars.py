@@ -39,7 +39,9 @@ def read_polars(
     for name, data in raw_data.items():
         if name in multiselects_as_single_column:
             qid = name
-            results[qid] = [_process_list(d.split(multiselect_separator)) for d in data]
+            results[qid] = [
+                _process_list(d.split(multiselect_separator)) if d else [] for d in data
+            ]
         else:
             parsed_items = parse_id(name, name_pattern)
             qid = parsed_items["id"]
