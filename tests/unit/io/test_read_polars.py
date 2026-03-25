@@ -13,6 +13,7 @@ def test_read_polars():
         f"Q2{MULTISELECT}3": ["z", "", "", "z", "z"],
         "Q3": [10, 12, 13, 14, 20],
         "Q4": ["abc", "def", "xyz", "ghy", "czxc"],
+        "Q5": ["a;c", "b;a", "a;b;c", "a", "b;c"],
     }
 
     expected_df = polars.DataFrame(
@@ -21,10 +22,16 @@ def test_read_polars():
             "Q2": [["x", "y", "z"], ["x", "y"], ["x"], ["y", "z"], ["z"]],
             "Q3": [10, 12, 13, 14, 20],
             "Q4": ["abc", "def", "xyz", "ghy", "czxc"],
+            "Q5": [["a", "c"], ["a", "b"], ["a", "b", "c"], ["a"], ["b", "c"]],
         }
     )
 
     assert_frame_equal(
-        read_polars(polars.DataFrame(raw_data)).get_df(multiselect_compact=True),
+        read_polars(
+            polars.DataFrame(raw_data),
+            multiselects_as_single_column=["Q5"],
+            multiselect_separator=";",
+            name_pattern="id(.matrix)?(_multi)?",
+        ).get_df(multiselect_compact=True),
         expected_df,
     )

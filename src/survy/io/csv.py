@@ -2,11 +2,16 @@ from pathlib import Path
 import polars
 
 from survy.errors import FileTypeError
-from survy.io._utils import process_polars_df
+from survy.io.polars import read_polars
 from survy.survey.survey import Survey
 
 
-def read_csv(path: str | Path, name_pattern: str = "id(.matrix)?(_multi)?") -> Survey:
+def read_csv(
+    path: str | Path,
+    multiselects_as_single_column: list[str] = [],
+    multiselect_separator: str = ";",
+    name_pattern: str = "id(.matrix)?(_multi)?",
+) -> Survey:
     if not isinstance(path, Path):
         path = Path(path)
 
@@ -15,4 +20,9 @@ def read_csv(path: str | Path, name_pattern: str = "id(.matrix)?(_multi)?") -> S
 
     df = polars.read_csv(path)
 
-    return Survey(questions=process_polars_df(df, name_pattern))
+    return read_polars(
+        df,
+        multiselects_as_single_column=multiselects_as_single_column,
+        multiselect_separator=multiselect_separator,
+        name_pattern=name_pattern,
+    )
