@@ -1,5 +1,7 @@
 from pathlib import Path
 from typing import Any, Literal
+import warnings
+
 import polars
 import pyreadstat
 
@@ -51,13 +53,14 @@ class Survey:
 
     def update(self, metadata: list[dict[str, Any]]):
         for info in metadata:
-            try:
+            id = info["id"]
+            if id in [q.id for q in self.questions]:
                 question = self[info["id"]]
                 question.update(
                     label=info.get("label", ""), mapping=info.get("mapping", {})
                 )
-            except Exception as e:
-                raise e
+            else:
+                warnings.warn(f"Id is not in survey: {id}")
 
     def update_by_yml(self, yml: str | Path):
         import yaml
