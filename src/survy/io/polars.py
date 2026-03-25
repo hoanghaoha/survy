@@ -62,8 +62,11 @@ def read_polars(
         if qid in multiselect_qids:
             results[qid] = [_process_list(d) for d in zip(*data)]
 
-    df = polars.DataFrame(results)
+    processed_df = polars.DataFrame(results)
+    processed_df = processed_df.select(
+        [c for c in processed_df.columns if processed_df[c].dtype != polars.Null]
+    )
 
-    questions = [_process_series(df[col]) for col in df.columns]
+    questions = [_process_series(processed_df[col]) for col in processed_df.columns]
 
     return Survey(questions=questions)
