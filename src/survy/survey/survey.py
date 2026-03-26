@@ -76,24 +76,24 @@ class Survey:
     def to_dict(self):
         return [question.to_dict() for question in self.questions]
 
-    def to_csv(self, dir_path: str | Path):
+    def to_csv(self, dir_path: str | Path, name: str = "survey"):
         if not isinstance(dir_path, Path):
             dir_path = Path(dir_path)
 
         self.get_df(
             select_dtype="text", multiselect_compact=False, multiselect_dtype="text"
-        ).write_csv(dir_path / "text_wide.csv")
+        ).write_csv(dir_path / f"{name}_text.csv")
 
         self.get_df(
             select_dtype="number", multiselect_compact=False, multiselect_dtype="number"
-        ).write_csv(dir_path / "number_wide.csv")
+        ).write_csv(dir_path / f"{name}_number.csv")
 
         polars.DataFrame(
             [
                 {"id": question.id, "qtype": question.qtype, "label": question.label}
                 for question in self.questions
             ]
-        ).write_csv(dir_path / "questions_info.csv")
+        ).write_csv(dir_path / f"{name}_questions_info.csv")
 
         polars.DataFrame(
             [
@@ -101,16 +101,16 @@ class Survey:
                 for question in self.questions
                 for op, index in question.mapping.items()
             ]
-        ).write_csv(dir_path / "options_info.csv")
+        ).write_csv(dir_path / f"{name}_options_info.csv")
 
-    def to_spss(self, dir_path: str | Path):
+    def to_spss(self, dir_path: str | Path, name: str = "survey"):
         if not isinstance(dir_path, Path):
             dir_path = Path(dir_path)
 
         number_df = self.get_df(
             select_dtype="number", multiselect_compact=False, multiselect_dtype="number"
         )
-        pyreadstat.write_sav(number_df, dir_path / "data.sav")
+        pyreadstat.write_sav(number_df, dir_path / f"{name}_data.sav")
 
-        with open(dir_path / "syntax.sps", "w", encoding="utf-8") as f:
+        with open(dir_path / f"{name}_syntax.sps", "w", encoding="utf-8") as f:
             f.write(self.sps)
