@@ -8,7 +8,7 @@ from survy.survey.question import Question
 
 
 @pytest.mark.parametrize(
-    "data, dtype, qtype, mapping, text_data, number_data, sub_bases",
+    "data, dtype, qtype, option_indices, text_data, number_data, sub_bases",
     [
         [
             ["a", "b", "c", "d", None],
@@ -39,11 +39,13 @@ from survy.survey.question import Question
         ],
     ],
 )
-def test_init_question(data, dtype, qtype, mapping, text_data, number_data, sub_bases):
+def test_init_question(
+    data, dtype, qtype, option_indices, text_data, number_data, sub_bases
+):
     values = polars.Series("Q1", data)
     question = Question(
         label="Test Question",
-        mapping=mapping,
+        option_indices=option_indices,
         values=values,
     )
 
@@ -55,7 +57,7 @@ def test_init_question(data, dtype, qtype, mapping, text_data, number_data, sub_
     assert question.to_dict() == {
         "id": "Q1",
         "label": "Test Question",
-        "mapping": mapping,
+        "option_indices": option_indices,
         "values": data,
     }
 
@@ -71,7 +73,7 @@ def test_init_question(data, dtype, qtype, mapping, text_data, number_data, sub_
 
 
 @pytest.mark.parametrize(
-    "data, mapping, new_label, new_mapping, correct_label, correct_mapping",
+    "data, option_indices, new_label, new_option_indices, correct_label, correct_option_indices",
     [
         [
             ["a", "b", "c", "d", None],
@@ -100,18 +102,25 @@ def test_init_question(data, dtype, qtype, mapping, text_data, number_data, sub_
     ],
 )
 def test_update_question_valid(
-    data, mapping, new_label, new_mapping, correct_label, correct_mapping
+    data,
+    option_indices,
+    new_label,
+    new_option_indices,
+    correct_label,
+    correct_option_indices,
 ):
     question = Question(
-        label="Question 1", mapping=mapping, values=polars.Series("Q1", data)
+        label="Question 1",
+        option_indices=option_indices,
+        values=polars.Series("Q1", data),
     )
-    question.update(new_label, new_mapping)
+    question.update(new_label, new_option_indices)
     assert question.label == correct_label
-    assert question.mapping == correct_mapping
+    assert question.option_indices == correct_option_indices
 
 
 @pytest.mark.parametrize(
-    "data, mapping, new_mapping",
+    "data, option_indices, new_option_indices",
     [
         [
             ["a", "b", "c", "d", None],
@@ -125,9 +134,11 @@ def test_update_question_valid(
         ],
     ],
 )
-def test_update_question_invalid(data, mapping, new_mapping):
+def test_update_question_invalid(data, option_indices, new_option_indices):
     question = Question(
-        label="Question 1", mapping=mapping, values=polars.Series("Q1", data)
+        label="Question 1",
+        option_indices=option_indices,
+        values=polars.Series("Q1", data),
     )
     with pytest.raises(DataStructureError):
-        question.update("", new_mapping)
+        question.update("", new_option_indices)

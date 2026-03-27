@@ -12,7 +12,7 @@ from survy.utils.functions import extract_mapping
 @dataclass
 class Question:
     label: str
-    mapping: dict[str, int]
+    option_indices: dict[str, int]
     values: polars.Series
 
     @property
@@ -63,18 +63,20 @@ class Question:
         return {
             "id": self.id,
             "label": self.label,
-            "mapping": self.mapping,
+            "option_indices": self.option_indices,
             "values": self.values.to_list(),
         }
 
-    def update(self, label: str = "", mapping: dict[str, int] = {}) -> None:
+    def update(self, label: str = "", option_indices: dict[str, int] = {}) -> None:
         if label != "" and isinstance(label, str):
             self.label = label
-        if mapping:
+        if option_indices:
             for v in extract_mapping(self.values.to_list()).keys():
-                if v not in mapping.keys():
-                    raise DataStructureError(f"Value is not have mapping index: {v}")
-            self.mapping = mapping
+                if v not in option_indices.keys():
+                    raise DataStructureError(
+                        f"Value is not have option_indices index: {v}"
+                    )
+            self.option_indices = option_indices
 
     def get_df(
         self, dtype: Literal["number", "text"] = "text", compact: bool = True
@@ -91,7 +93,7 @@ class Question:
                             .list.contains(val)
                             .cast(polars.Int8)
                             .alias(f"{self.id}{MULTISELECT}{index}")
-                            for val, index in self.mapping.items()
+                            for val, index in self.option_indices.items()
                         ]
                     )
                     return number_df.drop(self.id)
@@ -103,7 +105,7 @@ class Question:
                             .cast(polars.Int8)
                             .replace_strict({1: val}, default=None)
                             .alias(f"{self.id}{MULTISELECT}{index}")
-                            for val, index in self.mapping.items()
+                            for val, index in self.option_indices.items()
                         ]
                     )
                     return text_df.drop(self.id)
@@ -113,7 +115,9 @@ class Question:
 
         def _get_select_df():
             if dtype == "number":
-                return self.values.replace_strict(self.mapping, default=None).to_frame()
+                return self.values.replace_strict(
+                    self.option_indices, default=None
+                ).to_frame()
             else:
                 return self.values.to_frame()
 
