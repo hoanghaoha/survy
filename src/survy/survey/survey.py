@@ -40,8 +40,8 @@ class Survey:
         info = {}
         for question in self.questions:
             info[question.id] = {"id": question.id, "label": question.label}
-            if question.mapping:
-                info[question.id].update({"mapping": question.mapping})
+            if question.option_indices:
+                info[question.id].update({"option_indices": question.option_indices})
 
         result = [i for _, i in info.items()]
         if as_yml:
@@ -57,7 +57,8 @@ class Survey:
             if id in [q.id for q in self.questions]:
                 question = self[info["id"]]
                 question.update(
-                    label=info.get("label", ""), mapping=info.get("mapping", {})
+                    label=info.get("label", ""),
+                    option_indices=info.get("option_indices", {}),
                 )
             else:
                 warnings.warn(f"Id is not in survey: {id}")
@@ -99,7 +100,7 @@ class Survey:
             [
                 {"id": question.id, "text": op, "index": index}
                 for question in self.questions
-                for op, index in question.mapping.items()
+                for op, index in question.option_indices.items()
             ]
         ).write_csv(dir_path / f"{name}_options_info.csv")
 

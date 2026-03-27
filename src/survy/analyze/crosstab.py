@@ -13,7 +13,9 @@ def _get_df(question: Question, as_num: bool = False):
         df = question.get_df(dtype="text", compact=True).explode(question.id)
         if as_num:
             df = df.select(
-                polars.col(question.id).replace_strict(question.mapping, default=None)
+                polars.col(question.id).replace_strict(
+                    question.option_indices, default=None
+                )
             )
     elif question.qtype == QuestionType.SELECT:
         df = question.get_df(dtype="number" if as_num else "text")
@@ -202,7 +204,7 @@ def _crosstab_num(df: polars.DataFrame, col: Question, row: Question):
 def _default_filter(len_: int):
     return Question(
         label="FILTER",
-        mapping={"Total": 1},
+        option_indices={"Total": 1},
         values=polars.Series("FILTER", ["Total" for _ in range(len_)]),
     )
 
@@ -241,7 +243,7 @@ def crosstab(
     filter_df = _get_df(filter, as_num=False)
     df = col_df.join(row_df, on="ID", how="left").join(filter_df, on="ID", how="left")
 
-    for option, _ in filter.mapping.items():
+    for option, _ in filter.option_indices.items():
         filtered_df = df.filter(polars.col(filter.id) == option)
 
         if as_num:

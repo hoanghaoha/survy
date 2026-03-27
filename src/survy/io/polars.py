@@ -18,7 +18,7 @@ def read_polars(
         return sorted([i for i in li if i])
 
     def _process_series(series: polars.Series) -> Question:
-        mapping = (
+        option_indices = (
             {}
             if series.dtype.is_numeric() or series.dtype == polars.Datetime
             else extract_mapping(series.to_list())
@@ -27,7 +27,7 @@ def read_polars(
         question = Question(
             label=series.name,
             values=values,
-            mapping=mapping,
+            option_indices=option_indices,
         )
         return question
 
