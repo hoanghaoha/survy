@@ -205,7 +205,7 @@ def _default_filter(len_: int):
     return Question(
         label="FILTER",
         option_indices={"Total": 1},
-        values=polars.Series("FILTER", ["Total" for _ in range(len_)]),
+        series=polars.Series("FILTER", ["Total" for _ in range(len_)]),
     )
 
 
@@ -225,7 +225,7 @@ def crosstab(
         filter = _default_filter(col.len)
 
     if filter.id in [col.id, row.id]:
-        filter.values = filter.values.rename(filter.values.name + "_FILTER")
+        filter.series = filter.series.rename(filter.series.name + "_FILTER")
 
     if filter.qtype == QuestionType.NUMBER:
         raise DataTypeError("Can not filter by NUMBER")

@@ -23,10 +23,10 @@ def read_polars(
             if series.dtype.is_numeric() or series.dtype == polars.Datetime
             else extract_mapping(series.to_list())
         )
-        values = series.replace({"": None}) if series.dtype == polars.String else series
+        series = series.replace({"": None}) if series.dtype == polars.String else series
         question = Question(
             label=series.name,
-            values=values,
+            series=series,
             option_indices=option_indices,
         )
         return question

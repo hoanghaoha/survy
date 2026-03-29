@@ -42,11 +42,11 @@ from survy.survey.question import Question
 def test_init_question(
     data, dtype, qtype, option_indices, text_data, number_data, sub_bases
 ):
-    values = polars.Series("Q1", data)
+    series = polars.Series("Q1", data)
     question = Question(
         label="Test Question",
         option_indices=option_indices,
-        values=values,
+        series=series,
     )
 
     assert question.id == "Q1"
@@ -112,7 +112,7 @@ def test_update_question_valid(
     question = Question(
         label="Question 1",
         option_indices=option_indices,
-        values=polars.Series("Q1", data),
+        series=polars.Series("Q1", data),
     )
     question.update(new_label, new_option_indices)
     assert question.label == correct_label
@@ -138,7 +138,7 @@ def test_update_question_invalid(data, option_indices, new_option_indices):
     question = Question(
         label="Question 1",
         option_indices=option_indices,
-        values=polars.Series("Q1", data),
+        series=polars.Series("Q1", data),
     )
     with pytest.raises(DataStructureError):
         question.update("", new_option_indices)
