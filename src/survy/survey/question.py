@@ -13,33 +13,33 @@ from survy.utils.functions import extract_mapping
 class Question:
     label: str
     option_indices: dict[str, int]
-    values: polars.Series
+    series: polars.Series
 
     @property
     def id(self) -> str:
-        return self.values.name
+        return self.series.name
 
     @property
     def dtype(self) -> polars.DataType:
-        return self.values.dtype
+        return self.series.dtype
 
     @property
     def qtype(self) -> QuestionType:
-        if self.values.dtype == polars.List:
+        if self.series.dtype == polars.List:
             return QuestionType.MULTISELECT
-        elif self.values.dtype.is_numeric():
+        elif self.series.dtype.is_numeric():
             return QuestionType.NUMBER
-        elif self.values.dtype == polars.String:
+        elif self.series.dtype == polars.String:
             return QuestionType.SELECT
-        raise QuestionTypeError(f"Can not identify question type: {self.values.dtype}")
+        raise QuestionTypeError(f"Can not identify question type: {self.series.dtype}")
 
     @property
     def base(self) -> int:
-        return len([i for i in self.values.to_list() if i])
+        return len([i for i in self.series.to_list() if i])
 
     @property
     def len(self) -> int:
-        return self.values.shape[0]
+        return self.series.shape[0]
 
     @property
     def sub_bases(self) -> dict[str, int]:
@@ -64,14 +64,14 @@ class Question:
             "id": self.id,
             "label": self.label,
             "option_indices": self.option_indices,
-            "values": self.values.to_list(),
+            "values": self.series.to_list(),
         }
 
     def update(self, label: str = "", option_indices: dict[str, int] = {}) -> None:
         if label != "" and isinstance(label, str):
             self.label = label
         if option_indices:
-            for v in extract_mapping(self.values.to_list()).keys():
+            for v in extract_mapping(self.series.to_list()).keys():
                 if v not in option_indices.keys():
                     raise DataStructureError(
                         f"Value is not have option_indices index: {v}"
@@ -82,7 +82,7 @@ class Question:
         self, dtype: Literal["number", "text"] = "text", compact: bool = True
     ) -> polars.DataFrame:
         def _get_multiselect_df():
-            df = self.values.to_frame()
+            df = self.series.to_frame()
             if compact:
                 return df
             else:
@@ -111,15 +111,15 @@ class Question:
                     return text_df.drop(self.id)
 
         def _get_number_df():
-            return self.values.to_frame()
+            return self.series.to_frame()
 
         def _get_select_df():
             if dtype == "number":
-                return self.values.replace_strict(
+                return self.series.replace_strict(
                     self.option_indices, default=None
                 ).to_frame()
             else:
-                return self.values.to_frame()
+                return self.series.to_frame()
 
         return {
             QuestionType.MULTISELECT: _get_multiselect_df,
