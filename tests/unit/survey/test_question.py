@@ -110,7 +110,8 @@ def test_update_question_valid(
     question = Question(
         series=polars.Series("Q1", data),
     )
-    question.update(new_label, new_option_indices)
+    question.label = new_label
+    question.option_indices = new_option_indices
     assert question.label == correct_label
     assert question.option_indices == correct_option_indices
 
@@ -135,4 +136,4 @@ def test_update_question_invalid(data, option_indices, new_option_indices):
         series=polars.Series("Q1", data),
     )
     with pytest.raises(DataStructureError):
-        question.update("", new_option_indices)
+        question.option_indices = new_option_indices

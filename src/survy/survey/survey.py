@@ -56,10 +56,8 @@ class Survey:
             id = info["id"]
             if id in [q.id for q in self.questions]:
                 question = self[info["id"]]
-                question.update(
-                    label=info.get("label", ""),
-                    option_indices=info.get("option_indices", {}),
-                )
+                question.label = info.get("label", "")
+                question.option_indices = info.get("option_indices", {})
             else:
                 warnings.warn(f"Id is not in survey: {id}")
 
