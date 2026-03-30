@@ -44,7 +44,6 @@ def test_init_question(
 ):
     series = polars.Series("Q1", data)
     question = Question(
-        label="Test Question",
         option_indices=option_indices,
         series=series,
     )
@@ -56,7 +55,7 @@ def test_init_question(
     assert question.sub_bases == sub_bases
     assert question.to_dict() == {
         "id": "Q1",
-        "label": "Test Question",
+        "label": "Q1",
         "option_indices": option_indices,
         "values": data,
     }
@@ -86,7 +85,7 @@ def test_init_question(
         [
             ["a", "b", "c", "d", None],
             {"a": 1, "b": 2, "c": 3, "d": 4},
-            "",
+            "Question 1",
             {"a": 2, "b": 1, "c": 3, "d": 4, "e": 5},
             "Question 1",
             {"a": 2, "b": 1, "c": 3, "d": 4, "e": 5},
@@ -110,7 +109,6 @@ def test_update_question_valid(
     correct_option_indices,
 ):
     question = Question(
-        label="Question 1",
         option_indices=option_indices,
         series=polars.Series("Q1", data),
     )
@@ -136,7 +134,6 @@ def test_update_question_valid(
 )
 def test_update_question_invalid(data, option_indices, new_option_indices):
     question = Question(
-        label="Question 1",
         option_indices=option_indices,
         series=polars.Series("Q1", data),
     )

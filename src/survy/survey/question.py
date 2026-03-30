@@ -1,5 +1,5 @@
 from typing import Literal
-from dataclasses import dataclass
+import warnings
 
 import polars
 
@@ -9,15 +9,25 @@ from survy.survey._utils import QuestionType
 from survy.utils.functions import extract_mapping
 
 
-@dataclass
 class Question:
-    label: str
-    option_indices: dict[str, int]
-    series: polars.Series
+    def __init__(self, series: polars.Series, option_indices: dict[str, int]):
+        self.series = series
+        self.option_indices = option_indices
+        self._label: str = ""
 
     @property
     def id(self) -> str:
         return self.series.name
+
+    @property
+    def label(self) -> str:
+        return self._label if self._label else self.series.name
+
+    @label.setter
+    def label(self, new_label: str):
+        if len(new_label) > 250:
+            warnings.warn(f"{self.id} Len of label > 250 will be truncated")
+        self._label = new_label[:250]
 
     @property
     def dtype(self) -> polars.DataType:
