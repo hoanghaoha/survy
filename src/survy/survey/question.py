@@ -95,12 +95,6 @@ class Question:
             "values": self.series.to_list(),
         }
 
-    def update(self, label: str = "", option_indices: dict[str, int] = {}) -> None:
-        if label != "" and isinstance(label, str):
-            self.label = label
-        if option_indices:
-            self.option_indices = option_indices
-
     def get_df(
         self, dtype: Literal["number", "text"] = "text", compact: bool = True
     ) -> polars.DataFrame:
