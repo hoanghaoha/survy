@@ -10,9 +10,9 @@ from survy.utils.functions import extract_mapping
 
 
 class Question:
-    def __init__(self, series: polars.Series, option_indices: dict[str, int]):
+    def __init__(self, series: polars.Series):
         self.series = series
-        self.option_indices = option_indices
+        self._option_indices: dict[str, int] = {}
         self._label: str = ""
 
     @property
@@ -28,6 +28,24 @@ class Question:
         if len(new_label) > 250:
             warnings.warn(f"{self.id} Len of label > 250 will be truncated")
         self._label = new_label[:250]
+
+    @property
+    def option_indices(self) -> dict[str, int]:
+        if self.series.dtype.is_numeric():
+            return {}
+
+        return (
+            self._option_indices
+            if self._option_indices
+            else extract_mapping(self.series.to_list())
+        )
+
+    @option_indices.setter
+    def option_indices(self, new_option_indices):
+        for v in extract_mapping(self.series.to_list()).keys():
+            if v not in new_option_indices.keys():
+                raise DataStructureError(f"Value is not have option index: {v}")
+        self._option_indices = new_option_indices
 
     @property
     def dtype(self) -> polars.DataType:
@@ -81,11 +99,6 @@ class Question:
         if label != "" and isinstance(label, str):
             self.label = label
         if option_indices:
-            for v in extract_mapping(self.series.to_list()).keys():
-                if v not in option_indices.keys():
-                    raise DataStructureError(
-                        f"Value is not have option_indices index: {v}"
-                    )
             self.option_indices = option_indices
 
     def get_df(

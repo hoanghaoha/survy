@@ -4,7 +4,6 @@ import polars
 from survy.separator import MATRIX
 from survy.survey.question import Question
 from survy.survey.survey import Survey
-from survy.utils.functions import extract_mapping
 from survy.utils.parse_id import parse_id
 
 
@@ -18,15 +17,9 @@ def read_polars(
         return sorted([i for i in li if i])
 
     def _process_series(series: polars.Series) -> Question:
-        option_indices = (
-            {}
-            if series.dtype.is_numeric() or series.dtype == polars.Datetime
-            else extract_mapping(series.to_list())
-        )
         series = series.replace({"": None}) if series.dtype == polars.String else series
         question = Question(
             series=series,
-            option_indices=option_indices,
         )
         return question
 

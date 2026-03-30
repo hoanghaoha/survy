@@ -6,14 +6,12 @@ from survy.survey.survey import Survey
 
 def test_crosstab_category():
     q1 = Question(
-        option_indices={"a": 1, "b": 2, "c": 3},
         series=polars.Series(
             "Q1",
             ["a", "b", "c", "a", "a", "a", "a", "b"],
         ),
     )
     q2 = Question(
-        option_indices={"x": 1, "y": 2, "z": 3},
         series=polars.Series(
             "Q2",
             [
@@ -29,14 +27,12 @@ def test_crosstab_category():
         ),
     )
     q3 = Question(
-        option_indices={"d": 1, "e": 2, "f": 3},
         series=polars.Series(
             "Q3",
             ["d", "e", "d", "e", "d", "f", "f", "f"],
         ),
     )
     q4 = Question(
-        option_indices={"g": 1, "h": 2, "y": 3},
         series=polars.Series(
             "Q4",
             [
@@ -143,14 +139,12 @@ def test_crosstab_category():
 
 def test_crosstab_num():
     q1 = Question(
-        option_indices={"a": 1, "b": 2, "c": 3},
         series=polars.Series(
             "Q1",
             ["a", "b", "c", "a", "a", "a", "a", "b"],
         ),
     )
     q2 = Question(
-        option_indices={"x": 1, "y": 2, "z": 3},
         series=polars.Series(
             "Q2",
             [
@@ -166,7 +160,6 @@ def test_crosstab_num():
         ),
     )
     q3 = Question(
-        option_indices={},
         series=polars.Series(
             "Q3",
             [124, 3, 313, 39, 4924, 4949, 23, 22],
