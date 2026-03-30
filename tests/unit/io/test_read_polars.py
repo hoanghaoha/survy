@@ -31,7 +31,7 @@ def test_read_polars():
             polars.DataFrame(raw_data),
             multiselects_as_single_column=["Q5"],
             multiselect_separator=";",
-            name_pattern="id(.matrix)?(_multi)?",
+            name_pattern="id(.loop)?(_multi)?",
         ).get_df(multiselect_compact=True),
         expected_df,
     )

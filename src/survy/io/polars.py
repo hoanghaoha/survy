@@ -1,17 +1,17 @@
 from typing import Iterable
 import polars
 
-from survy.separator import MATRIX
+from survy.separator import LOOP
 from survy.survey.question import Question
 from survy.survey.survey import Survey
-from survy.utils.parse_id import parse_id
+from survy.utils.functions import parse_id
 
 
 def read_polars(
     df: polars.DataFrame,
     multiselects_as_single_column: list[str] = [],
     multiselect_separator: str = ";",
-    name_pattern: str = "id(.matrix)?(_multi)?",
+    name_pattern: str = "id(.loop)?(_multi)?",
 ) -> Survey:
     def _process_list(li: Iterable):
         return sorted([i for i in li if i])
@@ -41,7 +41,7 @@ def read_polars(
             multi_id = parsed_items.get("multi")
 
             if matrix_id:
-                qid = f"{qid}{MATRIX}{matrix_id}"
+                qid = f"{qid}{LOOP}{matrix_id}"
 
             if multi_id:
                 multiselect_qids.add(qid)

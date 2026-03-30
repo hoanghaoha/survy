@@ -1,4 +1,4 @@
 SEPARATORS = [".", "/", ":", "#", "@", ";", "_"]
 
 MULTISELECT = "_"
-MATRIX = "."
+LOOP = "."
