@@ -14,6 +14,7 @@ class Question:
         self.series = series
         self._option_indices: dict[str, int] = {}
         self._label: str = ""
+        self.loop_id: str = ""
 
     @property
     def id(self) -> str:
@@ -21,7 +22,11 @@ class Question:
 
     @property
     def label(self) -> str:
-        return self._label if self._label else self.series.name
+        label = self._label if self._label else self.series.name
+        if self.loop_id:
+            return f"[{self.loop_id}] " + label
+        else:
+            return label
 
     @label.setter
     def label(self, new_label: str):
