@@ -203,7 +203,6 @@ def _crosstab_num(df: polars.DataFrame, col: Question, row: Question):
 
 def _default_filter(len_: int):
     return Question(
-        label="FILTER",
         option_indices={"Total": 1},
         series=polars.Series("FILTER", ["Total" for _ in range(len_)]),
     )

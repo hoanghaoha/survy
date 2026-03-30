@@ -25,7 +25,6 @@ def read_polars(
         )
         series = series.replace({"": None}) if series.dtype == polars.String else series
         question = Question(
-            label=series.name,
             series=series,
             option_indices=option_indices,
         )
