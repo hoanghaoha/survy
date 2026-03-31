@@ -105,4 +105,10 @@ def create_sps(questions: list[Question]):
         elif question.qtype == QuestionType.NUMBER:
             commands.append(variable_level(question.qtype, question.id, "SCALE"))
 
+        elif question.qtype == QuestionType.NULL:
+            if question.option_indices:
+                commands.append(
+                    value_labels(question.qtype, question.id, question.option_indices)
+                )
+
     return "\n".join(commands)

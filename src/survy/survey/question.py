@@ -64,6 +64,8 @@ class Question:
             return QuestionType.NUMBER
         elif self.series.dtype == polars.String:
             return QuestionType.SELECT
+        elif self.series.dtype == polars.Null:
+            return QuestionType.NULL
         raise QuestionTypeError(f"Can not identify question type: {self.series.dtype}")
 
     @property

@@ -11,6 +11,9 @@ def extract_mapping(li: list[Any | list[Any]]) -> dict:
         sorted_set = sorted(set([i for i in li if i]))
         return {value: index for index, value in enumerate(sorted_set, 1)}
 
+    if all([i is None for i in li]):
+        return {}
+
     if all([isinstance(v, list) for v in li]):
         return _extract_list(list(chain.from_iterable(li)))
 
