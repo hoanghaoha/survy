@@ -29,8 +29,8 @@ def test_read_polars():
     assert_frame_equal(
         read_polars(
             polars.DataFrame(raw_data),
-            multiselects_as_single_column=["Q5"],
-            multiselect_separator=";",
+            compact_ids=["Q5"],
+            compact_separator=";",
             name_pattern="id(.loop)?(_multi)?",
         ).get_df(multiselect_compact=True),
         expected_df,
