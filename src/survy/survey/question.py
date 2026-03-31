@@ -24,9 +24,9 @@ class Question:
     def label(self) -> str:
         label = self._label if self._label else self.series.name
         if self.loop_id:
-            return f"[{self.loop_id}] " + label
-        else:
-            return label
+            label = f"[{self.loop_id}] " + label
+
+        return label[:249]
 
     @label.setter
     def label(self, new_label: str):
