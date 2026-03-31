@@ -149,4 +149,5 @@ class Question:
             QuestionType.MULTISELECT: _get_multiselect_df,
             QuestionType.SELECT: _get_select_df,
             QuestionType.NUMBER: _get_number_df,
+            QuestionType.NULL: _get_number_df,
         }[self.qtype]()
