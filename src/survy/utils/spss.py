@@ -8,7 +8,7 @@ def variable_labels(
     qtype: str, id: str, label: str, option_indices: dict[str, int] = {}
 ) -> str:
     match qtype:
-        case QuestionType.SELECT | QuestionType.NUMBER:
+        case QuestionType.SELECT | QuestionType.NUMBER | QuestionType.NULL:
             return f"VARIABLE LABELS {id} '{label}'."
         case QuestionType.MULTISELECT:
             if not option_indices:
@@ -50,9 +50,6 @@ def value_labels(qtype: str, id: str, option_indices: dict[str, int]) -> str:
         return ""
 
     match qtype:
-        case QuestionType.SELECT:
-            op_map_str = "\n".join([f"{i} '{op}'" for op, i in option_indices.items()])
-            return f"VALUE LABELS {id} {op_map_str}."
         case QuestionType.MULTISELECT:
             return "\n".join(
                 [
@@ -61,8 +58,8 @@ def value_labels(qtype: str, id: str, option_indices: dict[str, int]) -> str:
                 ]
             )
         case _:
-            raise KeyError(f"Question type is not have value label: {qtype}")
-
+            op_map_str = "\n".join([f"{i} '{op}'" for op, i in option_indices.items()])
+            return f"VALUE LABELS {id} {op_map_str}."
 
 def mrset(id: str, label: str, option_indices: dict[str, int]) -> str:
     if not option_indices:
