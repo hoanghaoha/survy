@@ -1,4 +1,5 @@
 from typing import Iterable
+import warnings
 from dataclasses import dataclass, field
 import polars
 
@@ -62,6 +63,9 @@ class PolarReader:
             self.data[id] = data
 
     def _read_series(self, series: polars.Series) -> None:
+        if series.dtype == polars.Null:
+            warnings.warn(f"{series.name} is null")
+
         id, loop_id, multi_id = self._parse_id(series.name)
         if id in self.compact_ids:
             self._read_multi_compact(id, series.to_list(), loop_id)
