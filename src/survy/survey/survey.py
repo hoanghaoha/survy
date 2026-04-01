@@ -60,29 +60,13 @@ class Survey:
 
         to_spss(self, path, name, encoding)
 
-    def to_csv(self, dir_path: str | Path, name: str = "survey"):
-        if not isinstance(dir_path, Path):
-            dir_path = Path(dir_path)
+    def to_csv(
+        self,
+        path: str | Path,
+        name: str = "survey",
+        compact: bool = False,
+        compact_separator: str = ";",
+    ):
+        from survy.io.csv import to_csv
 
-        self.get_df(select_dtype="text", multiselect_dtype="text").write_csv(
-            dir_path / f"{name}_text.csv"
-        )
-
-        self.get_df(select_dtype="number", multiselect_dtype="number").write_csv(
-            dir_path / f"{name}_number.csv"
-        )
-
-        polars.DataFrame(
-            [
-                {"id": question.id, "qtype": question.qtype, "label": question.label}
-                for question in self.questions
-            ]
-        ).write_csv(dir_path / f"{name}_questions_info.csv")
-
-        polars.DataFrame(
-            [
-                {"id": question.id, "text": op, "index": index}
-                for question in self.questions
-                for op, index in question.option_indices.items()
-            ]
-        ).write_csv(dir_path / f"{name}_options_info.csv")
+        to_csv(self, path, name, compact, compact_separator)
