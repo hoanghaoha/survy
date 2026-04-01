@@ -207,9 +207,9 @@ class Question:
         """
         return {
             "id": self.id,
+            "data": self.series.to_list(),
             "label": self._label,
             "option_indices": self.option_indices,
-            "values": self.series.to_list(),
             "qtype": self.qtype,
             "loop_id": self.loop_id,
         }

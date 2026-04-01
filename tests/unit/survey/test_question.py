@@ -196,7 +196,7 @@ def test_to_dict():
     d = q.to_dict()
 
     assert d["id"] == "Q1"
-    assert "values" in d
+    assert "data" in d
     assert "qtype" in d
 
 

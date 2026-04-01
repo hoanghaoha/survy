@@ -11,16 +11,6 @@ class Survey:
     def __init__(self, questions: list[Question]):
         self.questions = questions
 
-    @property
-    def sps(self) -> str:
-        commands = []
-
-        for question in self.questions:
-            commands.append(f"**{question.id}")
-            commands.append(question.sps)
-
-        return "\n".join(commands)
-
     def __getitem__(self, question_id: str):
         return {question.id: question for question in self.questions}[question_id]
 
@@ -36,17 +26,18 @@ class Survey:
             elif question.qtype == QuestionType.SELECT:
                 dfs.append(question.get_df(select_dtype))
             else:
-                dfs.append(question.get_df("number"))
+                dfs.append(question.get_df())
         return polars.concat(dfs, how="horizontal")
 
-    def get_info(self) -> list | str:
-        info = {}
-        for question in self.questions:
-            info[question.id] = {"id": question.id, "label": question.label}
-            if question.option_indices:
-                info[question.id].update({"option_indices": question.option_indices})
+    @property
+    def sps(self) -> str:
+        commands = []
 
-        return [i for _, i in info.items()]
+        for question in self.questions:
+            commands.append(f"**{question.id}")
+            commands.append(question.sps)
+
+        return "\n".join(commands)
 
     def update(self, metadata: list[dict[str, Any]]):
         for info in metadata:
@@ -59,20 +50,21 @@ class Survey:
                 warnings.warn(f"Id is not in survey: {id}")
 
     def to_json(
-        self, dir_path: str | Path, name: str = "survey", encoding: str = "utf-8"
+        self, path: str | Path, name: str = "survey", encoding: str = "utf-8"
     ) -> None:
-        import json
+        from survy.io.json import to_json
 
+        to_json(self, path, name, encoding)
+
+    def to_spss(self, dir_path: str | Path, name: str = "survey"):
         if not isinstance(dir_path, Path):
             dir_path = Path(dir_path)
 
-        data = {
-            "name": name,
-            "questions": [question.to_dict() for question in self.questions],
-        }
+        number_df = self.get_df(select_dtype="number", multiselect_dtype="number")
+        pyreadstat.write_sav(number_df, dir_path / f"{name}_data.sav")
 
-        with open(dir_path / name, "w", encoding=encoding) as f:
-            json.dump(data, f, ensure_ascii=False, indent=4)
+        with open(dir_path / f"{name}_syntax.sps", "w", encoding="utf-8") as f:
+            f.write(self.sps)
 
     def to_csv(self, dir_path: str | Path, name: str = "survey"):
         if not isinstance(dir_path, Path):
@@ -100,13 +92,3 @@ class Survey:
                 for op, index in question.option_indices.items()
             ]
         ).write_csv(dir_path / f"{name}_options_info.csv")
-
-    def to_spss(self, dir_path: str | Path, name: str = "survey"):
-        if not isinstance(dir_path, Path):
-            dir_path = Path(dir_path)
-
-        number_df = self.get_df(select_dtype="number", multiselect_dtype="number")
-        pyreadstat.write_sav(number_df, dir_path / f"{name}_data.sav")
-
-        with open(dir_path / f"{name}_syntax.sps", "w", encoding="utf-8") as f:
-            f.write(self.sps)
