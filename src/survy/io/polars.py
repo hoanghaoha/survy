@@ -160,23 +160,19 @@ def read_polars(
     """
     Convert a Polars DataFrame into a Survey object.
 
-    Parameters
-    ----------
-    raw_df : polars.DataFrame
-        Input DataFrame containing survey data.
-    compact_ids : list[str], optional
-        List of column names that represent multi-select responses stored
-        as a single delimited string. These will be split into lists.
-    compact_separator : str, default=";"
-        Delimiter used to split multi-select values in compact columns.
-    name_pattern : str, default="id(.loop)?(_multi)?"
-        Regular expression used to parse column names into components
-        such as question id, loop indicator, and multi-select flag.
+    This is the main entry point for reading survey data.
 
-    Returns
-    -------
-    Survey
-        A Survey object containing parsed questions and responses.
+    Args:
+        raw_df (polars.DataFrame): Input data.
+        compact_ids (list[str] | None):
+            IDs of questions using compact multi-select encoding.
+        compact_separator (str):
+            Separator for compact multi-select values.
+        name_pattern (str):
+            Pattern for parsing column names into id/loop/multi components.
+
+    Returns:
+        Survey: Parsed survey object.
     """
     compact_ids = compact_ids or []
     reader = PolarReader(compact_ids, compact_separator, name_pattern)
