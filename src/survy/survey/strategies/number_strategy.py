@@ -1,5 +1,7 @@
 import polars
+from survy.survey._utils import QuestionType
 from survy.survey.strategies.base_strategy import BaseStrategy
+from survy.utils.spss import variable_labels, variable_level
 
 
 class NumberStrategy(BaseStrategy):
@@ -26,3 +28,17 @@ class NumberStrategy(BaseStrategy):
         )
 
         return {item["option"]: item["base"] for item in result}
+
+    def get_sps(self, label: str) -> str:
+        id = self.series.name
+
+        assert len(label) < 250
+        label = label.replace("'", "").replace('"', "")
+
+        var_label_str = variable_labels(
+            QuestionType.NUMBER, id, label, self.option_indices
+        )
+
+        var_level_str = variable_level(QuestionType.NUMBER, id, "SCALE")
+
+        return "\n".join([var_label_str, var_level_str])

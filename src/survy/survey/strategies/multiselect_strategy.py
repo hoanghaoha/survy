@@ -1,7 +1,10 @@
 from typing import Literal
+import warnings
 import polars
 from survy.separator import MULTISELECT
+from survy.survey._utils import QuestionType
 from survy.survey.strategies.base_strategy import BaseStrategy
+from survy.utils.spss import mrset, value_labels, variable_labels, variable_level
 
 
 class MultiSelectStrategy(BaseStrategy):
@@ -57,3 +60,27 @@ class MultiSelectStrategy(BaseStrategy):
         )
 
         return {item["option"]: item["base"] for item in result}
+
+    def get_sps(self, label: str) -> str:
+        id = self.series.name
+
+        assert len(label) < 250
+        label = label.replace("'", "").replace('"', "")
+
+        var_label_str = variable_labels(
+            QuestionType.MULTISELECT, id, label, self.option_indices
+        )
+        value_label_str = value_labels(
+            QuestionType.MULTISELECT, id, self.option_indices
+        )
+        var_level_str = variable_level(
+            QuestionType.MULTISELECT, id, "NOMINAL", self.option_indices
+        )
+
+        if len(self.option_indices) == 1:
+            mrset_str = ""
+            warnings.warn(f"{id} have only 1 key for option. Mrset will be None")
+        else:
+            mrset_str = mrset(id, label, self.option_indices)
+
+        return "\n".join([var_label_str, value_label_str, var_level_str, mrset_str])

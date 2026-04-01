@@ -110,6 +110,10 @@ class Question:
     def sub_bases(self) -> dict[str, int]:
         return self.strategy.sub_bases
 
+    @property
+    def sps(self) -> str:
+        return self.strategy.get_sps(self.label)
+
     def get_df(
         self, dtype: Literal["number", "text"] = "text", compact: bool = True
     ) -> polars.DataFrame:

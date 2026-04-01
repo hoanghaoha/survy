@@ -1,6 +1,6 @@
 from typing import Literal
 
-from survy.survey.question import Question, QuestionType
+from survy.survey.question import QuestionType
 from survy.separator import MULTISELECT
 
 
@@ -71,36 +71,3 @@ LABEL='{label}'
 CATEGORYLABELS=COUNTEDVALUES VALUE=1
 VARIABLES={" ".join([f"{id}{MULTISELECT}{i}" for _, i in option_indices.items()])}
 /DISPLAY NAME=[${id}]."""
-
-
-def create_sps(questions: list[Question]):
-    commands = []
-
-    for question in questions:
-        label = question.label.replace("'", "").replace('"', "")
-        commands.append(
-            variable_labels(question.qtype, question.id, label, question.option_indices)
-        )
-        if question.qtype == QuestionType.MULTISELECT:
-            commands.append(
-                value_labels(question.qtype, question.id, question.option_indices)
-            )
-            commands.append(
-                variable_level(
-                    question.qtype, question.id, "NOMINAL", question.option_indices
-                )
-            )
-            commands.append(mrset(question.id, label, question.option_indices))
-        elif question.qtype == QuestionType.SELECT:
-            commands.append(
-                value_labels(question.qtype, question.id, question.option_indices)
-            )
-            commands.append(
-                variable_level(
-                    question.qtype, question.id, "NOMINAL", question.option_indices
-                )
-            )
-        elif question.qtype == QuestionType.NUMBER:
-            commands.append(variable_level(question.qtype, question.id, "SCALE"))
-
-    return "\n".join(commands)
