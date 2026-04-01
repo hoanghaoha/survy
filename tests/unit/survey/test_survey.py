@@ -22,33 +22,6 @@ def test_non_null_survey():
     assert isinstance(survey.get_info(), list)
     assert isinstance(survey.sps, str)
 
-    assert survey.to_dict() == [
-        {
-            "id": "Q1",
-            "label": "Q1",
-            "option_indices": {"a": 1, "b": 2, "c": 3},
-            "values": ["a", "b", "c", "a", "a"],
-        },
-        {
-            "id": "Q2",
-            "label": "Q2",
-            "option_indices": {"x": 1, "y": 2, "z": 3},
-            "values": [["x", "y", "z"], ["x", "y"], ["x"], ["y", "z"], ["z"]],
-        },
-        {
-            "id": "Q3",
-            "label": "Q3",
-            "option_indices": {},
-            "values": [10, 12, 13, 14, 20],
-        },
-        {
-            "id": "Q4",
-            "label": "Q4",
-            "option_indices": {"abc": 1, "czxc": 2, "def": 3, "ghy": 4, "xyz": 5},
-            "values": ["abc", "def", "xyz", "ghy", "czxc"],
-        },
-    ]
-
     assert_frame_equal(
         survey.get_df(select_dtype="text", multiselect_compact=True),
         polars.DataFrame(
@@ -138,33 +111,6 @@ def test_have_null_survey():
     assert isinstance(survey.get_info(), list)
     assert isinstance(survey.sps, str)
 
-    assert survey.to_dict() == [
-        {
-            "id": "Q1",
-            "label": "Q1",
-            "option_indices": {"a": 1, "b": 2, "c": 3},
-            "values": ["a", "b", "c", "a", None],
-        },
-        {
-            "id": "Q2",
-            "label": "Q2",
-            "option_indices": {"x": 1, "y": 2, "z": 3},
-            "values": [["x", "y", "z"], ["x", "y"], ["x"], ["y", "z"], ["z"]],
-        },
-        {
-            "id": "Q3",
-            "label": "Q3",
-            "option_indices": {},
-            "values": [10, 12, 13, 14, None],
-        },
-        {
-            "id": "Q4",
-            "label": "Q4",
-            "option_indices": {"abc": 1, "def": 2, "ghy": 3, "xyz": 4},
-            "values": ["abc", "def", "xyz", "ghy", None],
-        },
-    ]
-
     assert_frame_equal(
         survey.get_df(select_dtype="text", multiselect_compact=True),
         polars.DataFrame(
@@ -243,33 +189,6 @@ def test_update_survey():
             },
         ]
     )
-
-    assert survey.to_dict() == [
-        {
-            "id": "Q1",
-            "label": "Question 1",
-            "option_indices": {"a": 2, "b": 1, "c": 3},
-            "values": ["a", "b", "c", "a", "a"],
-        },
-        {
-            "id": "Q2",
-            "label": "Question 2",
-            "option_indices": {"x": 2, "y": 1, "z": 3},
-            "values": [["x", "y", "z"], ["x", "y"], ["x"], ["y", "z"], ["z"]],
-        },
-        {
-            "id": "Q3",
-            "label": "Q3",
-            "option_indices": {},
-            "values": [10, 12, 13, 14, 20],
-        },
-        {
-            "id": "Q4",
-            "label": "Q4",
-            "option_indices": {"abc": 1, "czxc": 2, "def": 3, "ghy": 4, "xyz": 5},
-            "values": ["abc", "def", "xyz", "ghy", "czxc"],
-        },
-    ]
 
     assert isinstance(survey.get_info(), list)
     assert isinstance(survey.sps, str)

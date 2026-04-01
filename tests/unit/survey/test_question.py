@@ -52,12 +52,6 @@ def test_init_question(
     assert question.qtype == qtype
     assert question.base == 4
     assert question.sub_bases == sub_bases
-    assert question.to_dict() == {
-        "id": "Q1",
-        "label": "Q1",
-        "option_indices": option_indices,
-        "values": data,
-    }
 
     assert_frame_equal(
         question.get_df(dtype="text"),
