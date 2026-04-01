@@ -16,6 +16,8 @@ class Question:
         self._label: str = ""
         self.loop_id: str = ""
 
+        assert self.qtype
+
     @property
     def id(self) -> str:
         return self.series.name
@@ -58,15 +60,23 @@ class Question:
 
     @property
     def qtype(self) -> QuestionType:
-        if self.series.dtype == polars.List:
+        dtype = self.dtype
+
+        if dtype == polars.List:
             return QuestionType.MULTISELECT
-        elif self.series.dtype.is_numeric():
+
+        if dtype.is_numeric():
             return QuestionType.NUMBER
-        elif self.series.dtype == polars.String:
+
+        if dtype == polars.String:
             return QuestionType.SELECT
-        elif self.series.dtype == polars.Null:
-            return QuestionType.NULL
-        raise QuestionTypeError(f"Can not identify question type: {self.series.dtype}")
+        try:
+            self.series.cast(polars.String)
+        except Exception as e:
+            raise QuestionTypeError from e
+
+        warnings.warn(f"{self.id} with dtype {self.series.dtype} converted to SELECT")
+        return QuestionType.SELECT
 
     @property
     def base(self) -> int:
@@ -149,5 +159,4 @@ class Question:
             QuestionType.MULTISELECT: _get_multiselect_df,
             QuestionType.SELECT: _get_select_df,
             QuestionType.NUMBER: _get_number_df,
-            QuestionType.NULL: _get_number_df,
         }[self.qtype]()

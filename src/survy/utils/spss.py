@@ -8,7 +8,7 @@ def variable_labels(
     qtype: str, id: str, label: str, option_indices: dict[str, int] = {}
 ) -> str:
     match qtype:
-        case QuestionType.SELECT | QuestionType.NUMBER | QuestionType.NULL:
+        case QuestionType.SELECT | QuestionType.NUMBER:
             return f"VARIABLE LABELS {id} '{label}'."
         case QuestionType.MULTISELECT:
             if not option_indices:
@@ -61,6 +61,7 @@ def value_labels(qtype: str, id: str, option_indices: dict[str, int]) -> str:
             op_map_str = "\n".join([f"{i} '{op}'" for op, i in option_indices.items()])
             return f"VALUE LABELS {id} {op_map_str}."
 
+
 def mrset(id: str, label: str, option_indices: dict[str, int]) -> str:
     if not option_indices:
         return ""
@@ -101,11 +102,5 @@ def create_sps(questions: list[Question]):
             )
         elif question.qtype == QuestionType.NUMBER:
             commands.append(variable_level(question.qtype, question.id, "SCALE"))
-
-        elif question.qtype == QuestionType.NULL:
-            if question.option_indices:
-                commands.append(
-                    value_labels(question.qtype, question.id, question.option_indices)
-                )
 
     return "\n".join(commands)
