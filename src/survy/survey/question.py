@@ -101,9 +101,11 @@ class Question:
     def to_dict(self) -> dict:
         return {
             "id": self.id,
-            "label": self.label,
+            "label": self._label,
             "option_indices": self.option_indices,
             "values": self.series.to_list(),
+            "qtype": self.qtype,
+            "loop_id": self.loop_id,
         }
 
     @property

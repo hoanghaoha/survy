@@ -59,8 +59,21 @@ class Survey:
             else:
                 warnings.warn(f"Id is not in survey: {id}")
 
-    def to_dict(self):
-        return [question.to_dict() for question in self.questions]
+    def to_json(
+        self, dir_path: str | Path, name: str = "survey", encoding: str = "utf-8"
+    ) -> None:
+        import json
+
+        if not isinstance(dir_path, Path):
+            dir_path = Path(dir_path)
+
+        data = {
+            "name": name,
+            "questions": [question.to_dict() for question in self.questions],
+        }
+
+        with open(dir_path / name, "w", encoding=encoding) as f:
+            json.dump(data, f, ensure_ascii=False, indent=4)
 
     def to_csv(self, dir_path: str | Path, name: str = "survey"):
         if not isinstance(dir_path, Path):
