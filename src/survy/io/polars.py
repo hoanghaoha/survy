@@ -63,20 +63,21 @@ class PolarReader:
             self.data[id] = data
 
     def _read_series(self, series: polars.Series) -> None:
-        if series.dtype == polars.Null:
-            warnings.warn(f"{series.name} is null")
-
         id, loop_id, multi_id = self._parse_id(series.name)
+        data = series.to_list()
         if id in self.compact_ids:
-            self._read_multi_compact(id, series.to_list(), loop_id)
+            self._read_multi_compact(id, data, loop_id)
         elif multi_id:
-            self._read_multi(id, series.to_list(), loop_id)
+            self._read_multi(id, data, loop_id)
         else:
-            self._read_normal(id, series.to_list(), loop_id)
+            self._read_normal(id, data, loop_id)
 
     def read_df(self, df: polars.DataFrame):
         for column in df.columns:
             series = df[column]
+            if series.dtype == polars.Null:
+                warnings.warn(f"{series.name} is Null will not be read")
+                continue
             self._read_series(series)
 
     def to_survey(self) -> Survey:
