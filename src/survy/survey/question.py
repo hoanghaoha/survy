@@ -4,8 +4,11 @@ import warnings
 import polars
 
 from survy.errors import DataStructureError, QuestionTypeError
-from survy.separator import MULTISELECT
 from survy.survey._utils import QuestionType
+from survy.survey.strategies.base_strategy import BaseStrategy
+from survy.survey.strategies.multiselect_strategy import MultiSelectStrategy
+from survy.survey.strategies.number_strategy import NumberStrategy
+from survy.survey.strategies.select_strategy import SelectStrategy
 from survy.utils.functions import extract_mapping
 
 
@@ -87,22 +90,12 @@ class Question:
         return self.series.shape[0]
 
     @property
-    def sub_bases(self) -> dict[str, int]:
-        if self.qtype == QuestionType.MULTISELECT:
-            df = self.get_df(dtype="text", compact=True).explode(self.id)
-        else:
-            df = self.get_df(dtype="text")
-
-        result = (
-            df.filter(polars.col(self.id).is_not_null())
-            .group_by(self.id)
-            .agg(polars.col(self.id).count().alias("base"))
-            .rename({self.id: "option"})
-            .sort("option")
-            .to_dicts()
-        )
-
-        return {item["option"]: item["base"] for item in result}
+    def strategy(self) -> BaseStrategy:
+        return {
+            QuestionType.SELECT: SelectStrategy,
+            QuestionType.MULTISELECT: MultiSelectStrategy,
+            QuestionType.NUMBER: NumberStrategy,
+        }[self.qtype](self.series, self.option_indices)
 
     def to_dict(self) -> dict:
         return {
@@ -112,51 +105,11 @@ class Question:
             "values": self.series.to_list(),
         }
 
+    @property
+    def sub_bases(self) -> dict[str, int]:
+        return self.strategy.sub_bases
+
     def get_df(
         self, dtype: Literal["number", "text"] = "text", compact: bool = True
     ) -> polars.DataFrame:
-        def _get_multiselect_df():
-            df = self.series.to_frame()
-            if compact:
-                return df
-            else:
-                if dtype == "number":
-                    number_df = df.with_columns(
-                        [
-                            polars.col(self.id)
-                            .list.contains(val)
-                            .cast(polars.Int8)
-                            .alias(f"{self.id}{MULTISELECT}{index}")
-                            for val, index in self.option_indices.items()
-                        ]
-                    )
-                    return number_df.drop(self.id)
-                else:
-                    text_df = df.with_columns(
-                        [
-                            polars.col(self.id)
-                            .list.contains(val)
-                            .cast(polars.Int8)
-                            .replace_strict({1: val}, default=None)
-                            .alias(f"{self.id}{MULTISELECT}{index}")
-                            for val, index in self.option_indices.items()
-                        ]
-                    )
-                    return text_df.drop(self.id)
-
-        def _get_number_df():
-            return self.series.to_frame()
-
-        def _get_select_df():
-            if dtype == "number":
-                return self.series.replace_strict(
-                    self.option_indices, default=None
-                ).to_frame()
-            else:
-                return self.series.to_frame()
-
-        return {
-            QuestionType.MULTISELECT: _get_multiselect_df,
-            QuestionType.SELECT: _get_select_df,
-            QuestionType.NUMBER: _get_number_df,
-        }[self.qtype]()
+        return self.strategy.get_df(dtype=dtype, compact=compact)
