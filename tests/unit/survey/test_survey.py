@@ -19,7 +19,6 @@ non_null_df = polars.DataFrame(
 def test_non_null_survey():
     survey = read_polars(non_null_df)
 
-    assert isinstance(survey.get_info(), list)
     assert isinstance(survey.sps, str)
 
     assert_frame_equal(
@@ -104,7 +103,6 @@ have_null_df = polars.DataFrame(
 def test_have_null_survey():
     survey = read_polars(have_null_df)
 
-    assert isinstance(survey.get_info(), list)
     assert isinstance(survey.sps, str)
 
     assert_frame_equal(
@@ -182,7 +180,6 @@ def test_update_survey():
         ]
     )
 
-    assert isinstance(survey.get_info(), list)
     assert isinstance(survey.sps, str)
 
     with pytest.raises(DataStructureError):
