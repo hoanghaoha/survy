@@ -98,7 +98,7 @@ def test_read_polars(request, df_fixture, name_pattern):
     )
 
     assert_frame_equal(
-        survey.get_df(multiselect_compact=True),
+        survey.get_df(multiselect_dtype="compact"),
         expected_df,
     )
 
