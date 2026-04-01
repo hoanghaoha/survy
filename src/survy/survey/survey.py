@@ -4,6 +4,7 @@ import warnings
 import polars
 
 from survy.survey.question import Question, QuestionType
+from survy.utils.spss import ctables
 
 
 class Survey:
@@ -99,8 +100,12 @@ class Survey:
         commands = []
 
         for question in self.questions:
-            commands.append(f"**{question.id}")
+            commands.append(f"**{question.id}\n")
             commands.append(question.sps)
+
+        commands.append(
+            ctables({question.id: question.qtype for question in self.questions})
+        )
 
         return "\n".join(commands)
 
@@ -221,4 +226,3 @@ class Survey:
         from survy.io.csv import to_csv
 
         to_csv(self, path, name, compact, compact_separator)
-

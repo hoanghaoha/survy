@@ -71,3 +71,26 @@ LABEL='{label}'
 CATEGORYLABELS=COUNTEDVALUES VALUE=1
 VARIABLES={" ".join([f"{id}{MULTISELECT}{i}" for _, i in option_indices.items()])}
 /DISPLAY NAME=[${id}]."""
+
+
+def ctables(id_type_map: dict[str, QuestionType]) -> str:
+    calculations = []
+    for id, qtype in id_type_map.items():
+        if qtype == QuestionType.SELECT:
+            calculations.append(f"{id} [C][COUNT F40.0, TOTALS[COUNT F40.0]] +")
+        elif qtype == QuestionType.MULTISELECT:
+            calculations.append(f"${id} [C][COUNT F40.0, TOTALS[COUNT F40.0]] +")
+        elif qtype == QuestionType.NUMBER:
+            calculations.append(f"{id} [MEAN COMMA40.2] +")
+    return f"""CTABLES
+/TABLE
+{"\n".join(calculations)}
+BY [Input Tabspec here]
+/SLABELS POSITION=ROW VISIBLE=NO
+/CATEGORIES VARIABLES=ALL
+    EMPTY=INCLUDE TOTAL=YES POSITION=BEFORE
+/COMPARETEST TYPE=MEAN ALPHA=0.05 ADJUST=NONE ORIGIN=COLUMN INCLUDEMRSETS=YES
+    CATEGORIES=ALLVISIBLE MEANSVARIANCE=TESTEDCATS MERGE=YES STYLE=SIMPLE SHOWSIG=NO
+/COMPARETEST TYPE=PROP ALPHA=0.05 ADJUST=NONE ORIGIN=COLUMN INCLUDEMRSETS=YES
+    CATEGORIES=ALLVISIBLE MEANSVARIANCE=TESTEDCATS MERGE=YES STYLE=SIMPLE SHOWSIG=NO
+    """
