@@ -10,7 +10,7 @@ from survy.survey.question import Question
 
 def _get_df(question: Question, as_num: bool = False):
     if question.qtype == QuestionType.MULTISELECT:
-        df = question.get_df(dtype="text", compact=True).explode(question.id)
+        df = question.get_df(dtype="compact").explode(question.id)
         if as_num:
             df = df.select(
                 polars.col(question.id).replace_strict(

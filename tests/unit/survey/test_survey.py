@@ -23,7 +23,7 @@ def test_non_null_survey():
     assert isinstance(survey.sps, str)
 
     assert_frame_equal(
-        survey.get_df(select_dtype="text", multiselect_compact=True),
+        survey.get_df(select_dtype="text", multiselect_dtype="compact"),
         polars.DataFrame(
             {
                 "Q1": ["a", "b", "c", "a", "a"],
@@ -35,7 +35,7 @@ def test_non_null_survey():
     )
 
     assert_frame_equal(
-        survey.get_df(select_dtype="number", multiselect_compact=True),
+        survey.get_df(select_dtype="number", multiselect_dtype="compact"),
         polars.DataFrame(
             {
                 "Q1": [1, 2, 3, 1, 1],
@@ -47,9 +47,7 @@ def test_non_null_survey():
     )
 
     assert_frame_equal(
-        survey.get_df(
-            select_dtype="number", multiselect_compact=False, multiselect_dtype="number"
-        ),
+        survey.get_df(select_dtype="number", multiselect_dtype="number"),
         polars.DataFrame(
             {
                 "Q1": [1, 2, 3, 1, 1],
@@ -71,9 +69,7 @@ def test_non_null_survey():
     )
 
     assert_frame_equal(
-        survey.get_df(
-            select_dtype="text", multiselect_compact=False, multiselect_dtype="text"
-        ),
+        survey.get_df(select_dtype="text", multiselect_dtype="text"),
         polars.DataFrame(
             {
                 "Q1": ["a", "b", "c", "a", "a"],
@@ -112,7 +108,7 @@ def test_have_null_survey():
     assert isinstance(survey.sps, str)
 
     assert_frame_equal(
-        survey.get_df(select_dtype="text", multiselect_compact=True),
+        survey.get_df(select_dtype="text", multiselect_dtype="compact"),
         polars.DataFrame(
             {
                 "Q1": ["a", "b", "c", "a", None],
@@ -124,9 +120,7 @@ def test_have_null_survey():
     )
 
     assert_frame_equal(
-        survey.get_df(
-            select_dtype="number", multiselect_compact=False, multiselect_dtype="number"
-        ),
+        survey.get_df(select_dtype="number", multiselect_dtype="number"),
         polars.DataFrame(
             {
                 "Q1": [1, 2, 3, 1, None],
@@ -148,9 +142,7 @@ def test_have_null_survey():
     )
 
     assert_frame_equal(
-        survey.get_df(
-            select_dtype="text", multiselect_compact=False, multiselect_dtype="text"
-        ),
+        survey.get_df(select_dtype="text", multiselect_dtype="text"),
         polars.DataFrame(
             {
                 "Q1": ["a", "b", "c", "a", None],

@@ -235,20 +235,17 @@ class Question:
         return self.strategy.get_sps(self.label)
 
     def get_df(
-        self, dtype: Literal["number", "text"] = "text", compact: bool = True
+        self, dtype: Literal["number", "text", "compact"] = "text"
     ) -> polars.DataFrame:
         """
         Returns a processed DataFrame representation of the question.
 
         Args:
-            dtype (Literal["number", "text"], optional):
+            dtype (Literal["number", "text", "compact"], optional):
                 Output format. Defaults to "text".
-            compact (bool, optional):
-                Use for MULTISELECT question.
-                Whether to return compact format. Defaults to True.
+                "compact" only use for MULTISELECT.
 
         Returns:
             polars.DataFrame: Processed DataFrame.
         """
-        return self.strategy.get_df(dtype=dtype, compact=compact)
-
+        return self.strategy.get_df(dtype=dtype)

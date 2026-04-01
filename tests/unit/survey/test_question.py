@@ -1,133 +1,331 @@
 import pytest
 import polars
 from polars.testing import assert_frame_equal
+import warnings
 
-from survy.errors import DataStructureError
-from survy.survey._utils import QuestionType
 from survy.survey.question import Question
+from survy.errors import DataStructureError, QuestionTypeError
+from survy.survey._utils import QuestionType
 
 
-@pytest.mark.parametrize(
-    "data, dtype, qtype, option_indices, text_data, number_data, sub_bases",
-    [
-        [
-            ["a", "b", "c", "d", None],
-            polars.String,
-            QuestionType.SELECT,
-            {"a": 1, "b": 2, "c": 3, "d": 4},
-            ["a", "b", "c", "d", None],
-            [1, 2, 3, 4, None],
-            {"a": 1, "b": 1, "c": 1, "d": 1},
-        ],
-        [
-            [["a", "b"], ["a", "b", "c"], ["b"], ["b", "c"]],
-            polars.List,
-            QuestionType.MULTISELECT,
-            {"a": 1, "b": 2, "c": 3},
-            [["a", "b"], ["a", "b", "c"], ["b"], ["b", "c"]],
-            [["a", "b"], ["a", "b", "c"], ["b"], ["b", "c"]],
-            {"a": 2, "b": 4, "c": 2},
-        ],
-        [
-            [12, 24, 1, 2, None],
-            polars.Int64,
-            QuestionType.NUMBER,
-            {},
-            [12, 24, 1, 2, None],
-            [12, 24, 1, 2, None],
-            {1: 1, 2: 1, 12: 1, 24: 1},
-        ],
-    ],
-)
-def test_init_question(
-    data, dtype, qtype, option_indices, text_data, number_data, sub_bases
-):
-    series = polars.Series("Q1", data)
-    question = Question(
-        series=series,
-    )
-
-    assert question.id == "Q1"
-    assert question.dtype == dtype
-    assert question.qtype == qtype
-    assert question.base == 4
-    assert question.sub_bases == sub_bases
-
-    assert_frame_equal(
-        question.get_df(dtype="text"),
-        polars.DataFrame({"Q1": text_data}),
-    )
-
-    assert_frame_equal(
-        question.get_df(dtype="number"),
-        polars.DataFrame({"Q1": number_data}),
-    )
+# -------------------------
+# Basic properties
+# -------------------------
 
 
-@pytest.mark.parametrize(
-    "data, option_indices, new_label, new_option_indices, correct_label, correct_option_indices",
-    [
-        [
-            ["a", "b", "c", "d", None],
-            {"a": 1, "b": 2, "c": 3, "d": 4},
-            "New question",
-            {"a": 2, "b": 1, "c": 3, "d": 4},
-            "New question",
-            {"a": 2, "b": 1, "c": 3, "d": 4},
-        ],
-        [
-            ["a", "b", "c", "d", None],
-            {"a": 1, "b": 2, "c": 3, "d": 4},
-            "Question 1",
-            {"a": 2, "b": 1, "c": 3, "d": 4, "e": 5},
-            "Question 1",
-            {"a": 2, "b": 1, "c": 3, "d": 4, "e": 5},
-        ],
-        [
-            [["a", "b"], ["a", "b", "c"], ["b"], ["b", "c"]],
-            {"a": 1, "b": 2, "c": 3},
-            "New question",
-            {"a": 2, "b": 1, "c": 3},
-            "New question",
-            {"a": 2, "b": 1, "c": 3},
-        ],
-    ],
-)
-def test_update_question_valid(
-    data,
-    option_indices,
-    new_label,
-    new_option_indices,
-    correct_label,
-    correct_option_indices,
-):
-    question = Question(
-        series=polars.Series("Q1", data),
-    )
-    question.label = new_label
-    question.option_indices = new_option_indices
-    assert question.label == correct_label
-    assert question.option_indices == correct_option_indices
+def test_question_id():
+    s = polars.Series("Q1", ["A", "B"])
+    q = Question(s)
+
+    assert q.id == "Q1"
 
 
-@pytest.mark.parametrize(
-    "data, option_indices, new_option_indices",
-    [
-        [
-            ["a", "b", "c", "d", None],
-            {"a": 1, "b": 2, "c": 3, "d": 4},
-            {"a": 2, "b": 1},
-        ],
-        [
-            [["a", "b"], ["a", "b", "c"], ["b"], ["b", "c"]],
-            {"a": 1, "b": 2, "c": 3},
-            {"a": 2, "b": 1},
-        ],
-    ],
-)
-def test_update_question_invalid(data, option_indices, new_option_indices):
-    question = Question(
-        series=polars.Series("Q1", data),
-    )
+def test_len_property():
+    s = polars.Series("Q1", ["A", "B", None])
+    q = Question(s)
+
+    assert q.len == 3
+
+
+def test_base_counts_non_empty():
+    s = polars.Series("Q1", ["A", "", None, "B"])
+    q = Question(s)
+
+    assert q.base == 2
+
+
+# -------------------------
+# qtype inference
+# -------------------------
+
+
+def test_qtype_select():
+    s = polars.Series("Q1", ["A", "B"])
+    q = Question(s)
+
+    assert q.qtype == QuestionType.SELECT
+
+
+def test_qtype_number():
+    s = polars.Series("Q1", [1, 2, 3])
+    q = Question(s)
+
+    assert q.qtype == QuestionType.NUMBER
+
+
+def test_qtype_multiselect():
+    s = polars.Series("Q1", [["A", "B"], ["B"]])
+    q = Question(s)
+
+    assert q.qtype == QuestionType.MULTISELECT
+
+
+def test_qtype_fallback_to_select_with_warning():
+    s = polars.Series("Q1", [True, False])
+
+    with warnings.catch_warnings(record=True) as w:
+        q = Question(s)
+        assert q.qtype == QuestionType.SELECT
+        assert len(w) > 0
+
+
+def test_qtype_error_on_invalid_cast(monkeypatch):
+    s = polars.Series("Q1", [object()])
+
+    def broken_cast(*args, **kwargs):
+        raise Exception("fail")
+
+    monkeypatch.setattr(s, "cast", broken_cast)
+
+    with pytest.raises(QuestionTypeError):
+        Question(s).qtype
+
+
+# -------------------------
+# label logic
+# -------------------------
+
+
+def test_label_default():
+    s = polars.Series("Q1", ["A"])
+    q = Question(s)
+
+    assert q.label == "Q1"
+
+
+def test_label_custom():
+    s = polars.Series("Q1", ["A"])
+    q = Question(s)
+    q.label = "Custom"
+
+    assert q.label == "Custom"
+
+
+def test_label_with_loop():
+    s = polars.Series("Q1", ["A"])
+    q = Question(s)
+    q.loop_id = "L1"
+
+    assert q.label.startswith("[L1]")
+
+
+def test_label_truncation_warning():
+    s = polars.Series("Q1", ["A"])
+    q = Question(s)
+    q.label = "x" * 300
+
+    with warnings.catch_warnings(record=True) as w:
+        label = q.label
+        assert len(label) == 249
+        assert len(w) == 1
+
+
+# -------------------------
+# option_indices
+# -------------------------
+
+
+def test_option_indices_auto():
+    s = polars.Series("Q1", ["A", "B", "A"])
+    q = Question(s)
+
+    mapping = q.option_indices
+
+    assert set(mapping.keys()) == {"A", "B"}
+
+
+def test_option_indices_numeric_empty():
+    s = polars.Series("Q1", [1, 2, 3])
+    q = Question(s)
+
+    assert q.option_indices == {}
+
+
+def test_option_indices_set_valid():
+    s = polars.Series("Q1", ["A", "B"])
+    q = Question(s)
+
+    q.option_indices = {"A": 1, "B": 2}
+
+    assert q.option_indices == {"A": 1, "B": 2}
+
+
+def test_option_indices_set_invalid():
+    s = polars.Series("Q1", ["A", "B"])
+    q = Question(s)
+
     with pytest.raises(DataStructureError):
-        question.option_indices = new_option_indices
+        q.option_indices = {"A": 1}
+
+
+# -------------------------
+# strategy selection
+# -------------------------
+
+
+def test_strategy_select():
+    s = polars.Series("Q1", ["A", "B"])
+    q = Question(s)
+
+    assert q.strategy.__class__.__name__ == "SelectStrategy"
+
+
+def test_strategy_number():
+    s = polars.Series("Q1", [1, 2])
+    q = Question(s)
+
+    assert q.strategy.__class__.__name__ == "NumberStrategy"
+
+
+def test_strategy_multiselect():
+    s = polars.Series("Q1", [["A"], ["B"]])
+    q = Question(s)
+
+    assert q.strategy.__class__.__name__ == "MultiSelectStrategy"
+
+
+# -------------------------
+# to_dict
+# -------------------------
+
+
+def test_to_dict():
+    s = polars.Series("Q1", ["A", "B"])
+    q = Question(s)
+
+    d = q.to_dict()
+
+    assert d["id"] == "Q1"
+    assert "values" in d
+    assert "qtype" in d
+
+
+# -------------------------
+# delegation (strategy methods)
+# -------------------------
+#
+
+
+def test_sub_bases_select():
+    s = polars.Series("Q1", ["A", "B", "B"])
+    q = Question(s)
+
+    assert q.sub_bases == {"A": 1, "B": 2}
+
+
+def test_sps_calls_strategy(monkeypatch):
+    s = polars.Series("Q1", ["A"])
+    q = Question(s)
+
+    class FakeStrategy:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def get_sps(self, label: str):
+            return "SPS"
+
+    monkeypatch.setattr("survy.survey.question.SelectStrategy", FakeStrategy)
+
+    assert q.sps == "SPS"
+
+
+def test_get_df_calls_strategy():
+    s = polars.Series("Q1", ["A"])
+    q = Question(s)
+
+    assert isinstance(q.get_df(), polars.DataFrame)
+
+
+# -------------------------
+# DataFrame
+# -------------------------
+
+
+def test_get_df_select():
+    s = polars.Series("Q1", ["A", "B", "C", "A"])
+    q = Question(s)
+
+    assert_frame_equal(q.get_df("text"), polars.DataFrame({"Q1": ["A", "B", "C", "A"]}))
+    assert_frame_equal(q.get_df("number"), polars.DataFrame({"Q1": [1, 2, 3, 1]}))
+
+
+def test_get_df_select_null():
+    s = polars.Series("Q1", ["A", "B", "C", "A", None])
+    q = Question(s)
+
+    assert_frame_equal(
+        q.get_df("text"), polars.DataFrame({"Q1": ["A", "B", "C", "A", None]})
+    )
+    assert_frame_equal(q.get_df("number"), polars.DataFrame({"Q1": [1, 2, 3, 1, None]}))
+
+
+def test_get_df_number():
+    s = polars.Series("Q1", [1, 2, 3, 4, 20])
+    q = Question(s)
+
+    assert_frame_equal(q.get_df(), polars.DataFrame({"Q1": [1, 2, 3, 4, 20]}))
+
+
+def test_get_df_null():
+    s = polars.Series("Q1", [1, 2, 3, 4, 20, 0, None])
+    q = Question(s)
+
+    assert_frame_equal(q.get_df(), polars.DataFrame({"Q1": [1, 2, 3, 4, 20, 0, None]}))
+
+
+def test_get_df_multiselect():
+    s = polars.Series("Q1", [["A", "B"], ["B"], ["B", "C"]])
+    q = Question(s)
+
+    assert_frame_equal(
+        q.get_df(dtype="compact"),
+        polars.DataFrame({"Q1": [["A", "B"], ["B"], ["B", "C"]]}),
+    )
+
+    assert_frame_equal(
+        q.get_df(dtype="text"),
+        polars.DataFrame(
+            {
+                "Q1_1": ["A", None, None],
+                "Q1_2": ["B", "B", "B"],
+                "Q1_3": [None, None, "C"],
+            }
+        ),
+    )
+
+    assert_frame_equal(
+        q.get_df(dtype="number"),
+        polars.DataFrame(
+            {"Q1_1": [1, 0, 0], "Q1_2": [1, 1, 1], "Q1_3": [0, 0, 1]},
+            schema={"Q1_1": polars.Int8, "Q1_2": polars.Int8, "Q1_3": polars.Int8},
+        ),
+    )
+
+
+def test_get_df_multiselect_null():
+    s = polars.Series("Q1", [["A", "B"], ["B"], ["B", "C"], []])
+    q = Question(s)
+
+    assert_frame_equal(
+        q.get_df(dtype="compact"),
+        polars.DataFrame({"Q1": [["A", "B"], ["B"], ["B", "C"], []]}),
+    )
+
+    assert_frame_equal(
+        q.get_df(dtype="text"),
+        polars.DataFrame(
+            {
+                "Q1_1": ["A", None, None, None],
+                "Q1_2": ["B", "B", "B", None],
+                "Q1_3": [None, None, "C", None],
+            }
+        ),
+    )
+
+    assert_frame_equal(
+        q.get_df(dtype="number"),
+        polars.DataFrame(
+            {"Q1_1": [1, 0, 0, 0], "Q1_2": [1, 1, 1, 0], "Q1_3": [0, 0, 1, 0]},
+            schema={"Q1_1": polars.Int8, "Q1_2": polars.Int8, "Q1_3": polars.Int8},
+        ),
+    )

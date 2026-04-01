@@ -27,13 +27,12 @@ class Survey:
     def get_df(
         self,
         select_dtype: Literal["number", "text"] = "text",
-        multiselect_compact: bool = True,
-        multiselect_dtype: Literal["number", "text"] = "number",
+        multiselect_dtype: Literal["number", "text", "compact"] = "number",
     ) -> polars.DataFrame:
         dfs = []
         for question in self.questions:
             if question.qtype == QuestionType.MULTISELECT:
-                dfs.append(question.get_df(multiselect_dtype, multiselect_compact))
+                dfs.append(question.get_df(multiselect_dtype))
             elif question.qtype == QuestionType.SELECT:
                 dfs.append(question.get_df(select_dtype))
             else:
@@ -79,13 +78,13 @@ class Survey:
         if not isinstance(dir_path, Path):
             dir_path = Path(dir_path)
 
-        self.get_df(
-            select_dtype="text", multiselect_compact=False, multiselect_dtype="text"
-        ).write_csv(dir_path / f"{name}_text.csv")
+        self.get_df(select_dtype="text", multiselect_dtype="text").write_csv(
+            dir_path / f"{name}_text.csv"
+        )
 
-        self.get_df(
-            select_dtype="number", multiselect_compact=False, multiselect_dtype="number"
-        ).write_csv(dir_path / f"{name}_number.csv")
+        self.get_df(select_dtype="number", multiselect_dtype="number").write_csv(
+            dir_path / f"{name}_number.csv"
+        )
 
         polars.DataFrame(
             [
@@ -106,9 +105,7 @@ class Survey:
         if not isinstance(dir_path, Path):
             dir_path = Path(dir_path)
 
-        number_df = self.get_df(
-            select_dtype="number", multiselect_compact=False, multiselect_dtype="number"
-        )
+        number_df = self.get_df(select_dtype="number", multiselect_dtype="number")
         pyreadstat.write_sav(number_df, dir_path / f"{name}_data.sav")
 
         with open(dir_path / f"{name}_syntax.sps", "w", encoding="utf-8") as f:
