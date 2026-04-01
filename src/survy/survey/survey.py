@@ -2,7 +2,6 @@ from pathlib import Path
 from typing import Any, Literal
 import warnings
 import polars
-import pyreadstat
 
 from survy.survey.question import Question, QuestionType
 
@@ -56,15 +55,10 @@ class Survey:
 
         to_json(self, path, name, encoding)
 
-    def to_spss(self, dir_path: str | Path, name: str = "survey"):
-        if not isinstance(dir_path, Path):
-            dir_path = Path(dir_path)
+    def to_spss(self, path: str | Path, name: str = "survey", encoding: str = "utf-8"):
+        from survy.io.spss import to_spss
 
-        number_df = self.get_df(select_dtype="number", multiselect_dtype="number")
-        pyreadstat.write_sav(number_df, dir_path / f"{name}_data.sav")
-
-        with open(dir_path / f"{name}_syntax.sps", "w", encoding="utf-8") as f:
-            f.write(self.sps)
+        to_spss(self, path, name, encoding)
 
     def to_csv(self, dir_path: str | Path, name: str = "survey"):
         if not isinstance(dir_path, Path):
