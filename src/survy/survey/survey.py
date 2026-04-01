@@ -40,20 +40,14 @@ class Survey:
                 dfs.append(question.get_df("number"))
         return polars.concat(dfs, how="horizontal")
 
-    def get_info(self, as_yml: bool = False) -> list | str:
+    def get_info(self) -> list | str:
         info = {}
         for question in self.questions:
             info[question.id] = {"id": question.id, "label": question.label}
             if question.option_indices:
                 info[question.id].update({"option_indices": question.option_indices})
 
-        result = [i for _, i in info.items()]
-        if as_yml:
-            import yaml
-
-            return yaml.dump(result, default_flow_style=False, allow_unicode=True)
-
-        return result
+        return [i for _, i in info.items()]
 
     def update(self, metadata: list[dict[str, Any]]):
         for info in metadata:
@@ -64,17 +58,6 @@ class Survey:
                 question.option_indices = info.get("option_indices", {})
             else:
                 warnings.warn(f"Id is not in survey: {id}")
-
-    def update_by_yml(self, yml: str | Path):
-        import yaml
-
-        path = Path(yml)
-        if path.is_file():
-            with open(yml, "r") as f:
-                metadata = yaml.safe_load(f)
-        else:
-            metadata = yaml.safe_load(str(yml))
-        self.update(metadata)
 
     def to_dict(self):
         return [question.to_dict() for question in self.questions]
