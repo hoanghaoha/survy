@@ -15,28 +15,23 @@ def read_csv(
     """
     Read a CSV file and return a Survey object.
 
-    Parameters
-    ----------
-    path : str or Path
-        Path to the CSV file.
-    compact_ids : list[str], optional
-        List of column names that represent multi-select responses stored
-        as a single delimited string. These will be split into lists.
-    compact_separator : str, default=";"
-        Delimiter used to split multi-select values in compact columns.
-    name_pattern : str, default="id(.loop)?(_multi)?"
-        Regular expression used to parse column names into components
-        such as question id, loop indicator, and multi-select flag.
+    This is the main entry point for reading survey data.
 
-    Returns
-    -------
-    Survey
-        A Survey object containing parsed questions and responses.
+    Args:
+        path (str | Path):
+            Path to the CSV file.
+        compact_ids (list[str] | None):
+            IDs of questions using compact multi-select encoding.
+        compact_separator (str):
+            Separator for compact multi-select values.
+        name_pattern (str):
+            Pattern for parsing column names into id/loop/multi components.
 
-    Raises
-    ------
-    FileTypeError
-        If the provided file is not a `.csv` file.
+    Returns:
+        Survey: Parsed survey object.
+
+    Raises:
+        FileTypeError: If input file is not .csv
     """
     if not isinstance(path, Path):
         path = Path(path)
