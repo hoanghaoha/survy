@@ -14,86 +14,23 @@ from survy.utils.functions import extract_mapping
 
 class Question:
     """
-    Representation of a single survey question backed by a Polars Series.
+    Represents a single survey question backed by a Polars Series.
 
-    This class encapsulates a column of survey data and provides utilities
-    to infer question type, manage labels and options, and transform data
-    using strategy objects.
-
-    Parameters
-    ----------
-    series : polars.Series
-        A Polars Series representing the responses for a single question.
-        The series name is used as the question identifier.
-
-    Attributes
-    ----------
-    series : polars.Series
-        Underlying data for the question.
-    loop_id : str
-        Optional loop identifier used to prefix the label.
-    _label : str
-        Internal label storage. Falls back to series name if not set.
-    _option_indices : dict[str, int]
-        Mapping of option values to indices for categorical questions.
-
-    Properties
-    ----------
-    id : str
-        Unique identifier of the question (derived from series name).
-    label : str
-        Human-readable label. Defaults to series name and may be prefixed
-        by loop_id. Truncated to 249 characters if too long.
-    dtype : polars.DataType
-        Data type of the underlying series.
-    qtype : QuestionType
-        Inferred question type (SELECT, MULTISELECT, NUMBER).
-    option_indices : dict[str, int]
-        Mapping of categorical values to indices. Automatically inferred
-        if not explicitly set.
-    base : int
-        Number of non-null / truthy responses.
-    len : int
-        Total number of responses.
-    strategy : BaseStrategy
-        Strategy instance used for processing the question based on qtype.
-    sub_bases : dict[str, int]
-        Subgroup counts computed by the strategy.
-    sps : str
-        SPSS syntax auto generated of the question (strategy-specific)
-
-    Methods
-    -------
-    to_dict() -> dict
-        Convert the question into a dictionary representation.
-    get_df(dtype="text", compact=True) -> polars.DataFrame
-        Return a DataFrame representation of the question using the
-        associated strategy.
-
-    Raises
-    ------
-    QuestionTypeError
-        If the series dtype cannot be interpreted as a valid question type.
-    DataStructureError
-        If provided option_indices do not match the data values.
-
-    Warns
-    -----
-    UserWarning
-        If label length exceeds 250 characters (will be truncated).
-    UserWarning
-        If a non-string dtype is coerced into SELECT type.
-
-    Notes
-    -----
-    - Question type is inferred automatically from the series dtype:
-      - List → MULTISELECT
-      - Numeric → NUMBER
-      - String → SELECT
-    - Strategy pattern is used to delegate behavior based on question type.
+    Attributes:
+        series (polars.Series): Raw data for the question.
+        loop_id (str): Optional loop identifier for repeated questions.
     """
 
     def __init__(self, series: polars.Series):
+        """
+        Initialize a Question instance.
+
+        Args:
+            series (polars.Series): The data column representing the question.
+
+        Raises:
+            AssertionError: If question type cannot be determined.
+        """
         self.series = series
         self._option_indices: dict[str, int] = {}
         self._label: str = ""
@@ -103,13 +40,25 @@ class Question:
 
     @property
     def id(self) -> str:
+        """
+        Returns the question identifier (column name).
+
+        Returns:
+            str: Question ID.
+        """
         return self.series.name
 
     @property
     def label(self) -> str:
         """
-        Label of the question. Len < 250
-        If the question have loop_id, label will be [loop_id] + label
+        Returns the display label of the question.
+
+        - Uses custom label if set, otherwise defaults to column name.
+        - Prepends loop_id if present.
+        - Truncates label to 249 characters.
+
+        Returns:
+            str: Formatted label.
         """
         label = self._label if self._label else self.series.name
         if self.loop_id:
@@ -122,10 +71,25 @@ class Question:
 
     @label.setter
     def label(self, new_label: str):
+        """
+        Set a custom label for the question.
+
+        Args:
+            new_label (str): New label.
+        """
         self._label = new_label
 
     @property
     def option_indices(self) -> dict[str, int]:
+        """
+        Returns mapping of response values to numeric indices.
+
+        - For numeric questions, returns empty dict.
+        - If not manually set, inferred from data.
+
+        Returns:
+            dict[str, int]: Value-to-index mapping.
+        """
         if self.series.dtype.is_numeric():
             return {}
 
@@ -137,6 +101,17 @@ class Question:
 
     @option_indices.setter
     def option_indices(self, new_option_indices):
+        """
+        Set custom option index mapping.
+
+        Ensures all existing values are covered.
+
+        Args:
+            new_option_indices (dict[str, int]): Mapping of values to indices.
+
+        Raises:
+            DataStructureError: If any value is missing from mapping.
+        """
         for v in extract_mapping(self.series.to_list()).keys():
             if v not in new_option_indices.keys():
                 raise DataStructureError(f"Value is not have option index: {v}")
@@ -144,10 +119,31 @@ class Question:
 
     @property
     def dtype(self) -> polars.DataType:
+        """
+        Returns the data type of the series.
+
+        Returns:
+            polars.DataType: Series data type.
+        """
         return self.series.dtype
 
     @property
     def qtype(self) -> QuestionType:
+        """
+        Infers the question type based on data type.
+
+        Rules:
+            - List → MULTISELECT
+            - Numeric → NUMBER
+            - String → SELECT
+            - Otherwise, attempts cast to string → SELECT
+
+        Returns:
+            QuestionType: Inferred question type.
+
+        Raises:
+            QuestionTypeError: If type cannot be determined.
+        """
         dtype = self.dtype
 
         if dtype == polars.List:
@@ -168,14 +164,34 @@ class Question:
 
     @property
     def base(self) -> int:
+        """
+        Returns the count of non-empty responses.
+
+        Returns:
+            int: Base count.
+        """
         return len([i for i in self.series.to_list() if i])
 
     @property
     def len(self) -> int:
+        """
+        Returns total number of responses.
+
+        Returns:
+            int: Length of series.
+        """
         return self.series.shape[0]
 
     @property
     def strategy(self) -> BaseStrategy:
+        """
+        Returns the appropriate strategy instance for the question.
+
+        Strategy is selected based on question type.
+
+        Returns:
+            BaseStrategy: Strategy instance.
+        """
         return {
             QuestionType.SELECT: SelectStrategy,
             QuestionType.MULTISELECT: MultiSelectStrategy,
@@ -183,6 +199,12 @@ class Question:
         }[self.qtype](self.series, self.option_indices)
 
     def to_dict(self) -> dict:
+        """
+        Serializes the question into a dictionary.
+
+        Returns:
+            dict: Question representation.
+        """
         return {
             "id": self.id,
             "label": self._label,
@@ -194,13 +216,39 @@ class Question:
 
     @property
     def sub_bases(self) -> dict[str, int]:
+        """
+        Returns sub-base counts from the strategy.
+
+        Returns:
+            dict[str, int]: Sub-base values.
+        """
         return self.strategy.sub_bases
 
     @property
     def sps(self) -> str:
+        """
+        Returns SPSS syntax representation of the question.
+
+        Returns:
+            str: SPSS syntax string.
+        """
         return self.strategy.get_sps(self.label)
 
     def get_df(
         self, dtype: Literal["number", "text"] = "text", compact: bool = True
     ) -> polars.DataFrame:
+        """
+        Returns a processed DataFrame representation of the question.
+
+        Args:
+            dtype (Literal["number", "text"], optional):
+                Output format. Defaults to "text".
+            compact (bool, optional):
+                Use for MULTISELECT question.
+                Whether to return compact format. Defaults to True.
+
+        Returns:
+            polars.DataFrame: Processed DataFrame.
+        """
         return self.strategy.get_df(dtype=dtype, compact=compact)
+

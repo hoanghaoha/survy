@@ -6,11 +6,35 @@ from survy.utils.spss import value_labels, variable_labels, variable_level
 
 
 class SelectStrategy(BaseStrategy):
+    """
+    Strategy for handling single-select (categorical) survey questions.
+    """
+
     def __init__(self, series: polars.Series, option_indices: dict[str, int]) -> None:
+        """
+        Initialize SelectStrategy.
+
+        Args:
+            series (polars.Series): Raw response data.
+            option_indices (dict[str, int]): Mapping from category labels
+                to numeric codes.
+        """
         self.series = series
         self.option_indices = option_indices
 
     def get_df(self, **kwargs) -> polars.DataFrame:
+        """
+        Convert the series into a DataFrame representation.
+
+        Args:
+            **kwargs:
+                dtype (Literal["number", "text"]):
+                    - "number": replace categories with numeric codes
+                    - "text": keep original labels
+
+        Returns:
+            polars.DataFrame: Transformed DataFrame.
+        """
         dtype: Literal["number", "text"] = kwargs["dtype"]
 
         if dtype == "number":
@@ -22,6 +46,14 @@ class SelectStrategy(BaseStrategy):
 
     @property
     def sub_bases(self) -> dict[str, int]:
+        """
+        Compute frequency counts for each category.
+
+        Null values are excluded from the base.
+
+        Returns:
+            dict[str, int]: Mapping of category → count.
+        """
         df = self.get_df(dtype="text")
         id = self.series.name
 
@@ -37,6 +69,24 @@ class SelectStrategy(BaseStrategy):
         return {item["option"]: item["base"] for item in result}
 
     def get_sps(self, label: str) -> str:
+        """
+        Generate SPSS syntax for a single-select question.
+
+        This includes:
+        - Variable labels
+        - Value labels
+        - Variable measurement level (nominal)
+
+        Args:
+            label (str): Question label.
+
+        Returns:
+            str: Combined SPSS syntax string.
+
+        Notes:
+            - Label is sanitized to remove quotes.
+            - Label must be shorter than 250 characters.
+        """
         id = self.series.name
 
         assert len(label) < 250
