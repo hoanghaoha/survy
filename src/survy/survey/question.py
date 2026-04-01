@@ -31,13 +31,14 @@ class Question:
         if self.loop_id:
             label = f"[{self.loop_id}] " + label
 
+        if len(label) >= 250:
+            warnings.warn(f"{self.id} Len of label > 250 will be truncated")
+
         return label[:249]
 
     @label.setter
     def label(self, new_label: str):
-        if len(new_label) > 250:
-            warnings.warn(f"{self.id} Len of label > 250 will be truncated")
-        self._label = new_label[:250]
+        self._label = new_label
 
     @property
     def option_indices(self) -> dict[str, int]:
