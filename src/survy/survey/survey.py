@@ -1,12 +1,10 @@
 from pathlib import Path
 from typing import Any, Literal
 import warnings
-
 import polars
 import pyreadstat
 
 from survy.survey.question import Question, QuestionType
-from survy.utils.spss import create_sps
 
 
 class Survey:
@@ -15,7 +13,13 @@ class Survey:
 
     @property
     def sps(self) -> str:
-        return create_sps(self.questions)
+        commands = []
+
+        for question in self.questions:
+            commands.append(f"**{question.id}")
+            commands.append(question.sps)
+
+        return "\n".join(commands)
 
     def __getitem__(self, question_id: str):
         return {question.id: question for question in self.questions}[question_id]
