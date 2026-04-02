@@ -75,12 +75,9 @@ class PolarReader:
     def read_df(self, df: polars.DataFrame):
         for column in df.columns:
             series = df[column]
-            if series.dtype == polars.Null:
-                warnings.warn(f"{series.name} is Null will not be read")
-                continue
             self._read_series(series)
 
-    def to_survey(self) -> Survey:
+    def to_survey(self, exclude_null: bool = True) -> Survey:
         def _from_normal(id: str, values: list):
             return Question(series=polars.Series(id, values))
 
@@ -148,7 +145,35 @@ class PolarReader:
             else:
                 questions.append(result)
 
-        return Survey(questions=questions)
+        excluded_questions = []
+        for question in questions:
+            if question.series.dtype == polars.Null:
+                if exclude_null:
+                    warnings.warn(
+                        f"Question {question.id} with no responses will be excluded"
+                    )
+                    excluded_questions.append(question.id)
+                else:
+                    warnings.warn(f"Read Null Question {question.id}")
+
+            if question.series.dtype == polars.List and all(
+                [d == [] for d in question.series.to_list()]
+            ):
+                if exclude_null:
+                    warnings.warn(
+                        f"MULTISELECT Question {question.id} with no responses will be excluded"
+                    )
+                    excluded_questions.append(question.id)
+                else:
+                    warnings.warn(f"Read Empty Question {question.id}")
+
+        return Survey(
+            questions=[
+                question
+                for question in questions
+                if question.id not in excluded_questions
+            ]
+        )
 
 
 def read_polars(
@@ -156,6 +181,7 @@ def read_polars(
     compact_ids: list[str] | None = None,
     compact_separator: str = ";",
     name_pattern: str = "id(.loop)?(_multi)?",
+    exclude_null: bool = True,
 ) -> Survey:
     """
     Convert a Polars DataFrame into a Survey object.
@@ -170,6 +196,8 @@ def read_polars(
             Separator for compact multi-select values.
         name_pattern (str):
             Pattern for parsing column names into id/loop/multi components.
+        exclude_null (bool):
+            Default True, exclude Null columns or Empty List columns
 
     Returns:
         Survey: Parsed survey object.
@@ -177,4 +205,4 @@ def read_polars(
     compact_ids = compact_ids or []
     reader = PolarReader(compact_ids, compact_separator, name_pattern)
     reader.read_df(raw_df)
-    return reader.to_survey()
+    return reader.to_survey(exclude_null)

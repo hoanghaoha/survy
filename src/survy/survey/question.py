@@ -152,6 +152,12 @@ class Question:
         dtype = self.dtype
 
         if dtype == polars.List:
+            if all([d == [] for d in self.series.to_list()]):
+                self.series = polars.Series(
+                    self.series.name, ["" for _ in range(self.len)], dtype=polars.String
+                )
+                warnings.warn(f"{self.id} with empty list converted to SELECT")
+                return QuestionType.SELECT
             return QuestionType.MULTISELECT
 
         if dtype.is_numeric():
@@ -159,6 +165,7 @@ class Question:
 
         if dtype == polars.String:
             return QuestionType.SELECT
+
         try:
             self.series.cast(polars.String)
         except Exception as e:
