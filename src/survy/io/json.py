@@ -32,7 +32,8 @@ def read_json(path: str | Path) -> Survey:
     for d in data["questions"]:
         question = Question(series=polars.Series(d["id"], d["data"]))
         question.label = d["label"]
-        question.option_indices = d["option_indices"]
+        if d["option_indices"]:
+            question.option_indices = d["option_indices"]
         question.loop_id = d["loop_id"]
         questions.append(question)
 
