@@ -112,10 +112,15 @@ class Question:
         Raises:
             DataStructureError: If any value is missing from mapping.
         """
-        for v in extract_mapping(self.series.to_list()).keys():
-            if v not in new_option_indices.keys():
-                raise DataStructureError(f"Value is not have option index: {v}")
-        self._option_indices = new_option_indices
+        if self.series.dtype.is_numeric():
+            warnings.warn(
+                f"Number question {self.id} can not be updated option_indices"
+            )
+        else:
+            for v in extract_mapping(self.series.to_list()).keys():
+                if v not in new_option_indices.keys():
+                    raise DataStructureError(f"Value is not have option index: {v}")
+            self._option_indices = new_option_indices
 
     @property
     def dtype(self) -> polars.DataType:

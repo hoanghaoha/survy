@@ -128,6 +128,7 @@ class Survey:
         Notes:
             - Missing optional fields default to empty values.
             - Unknown question IDs trigger a warning and are skipped.
+            - NUMBER question will not be updated for option_indices
 
         Examples:
             >>> metadata = [
@@ -145,7 +146,8 @@ class Survey:
 
             question = self[info["id"]]
             question.label = info.get("label", "")
-            question.option_indices = info.get("option_indices", {})
+            if not question.series.dtype.is_numeric():
+                question.option_indices = info.get("option_indices", {})
 
     def to_json(
         self, path: str | Path, name: str = "survey", encoding: str = "utf-8"
