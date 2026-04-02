@@ -60,6 +60,16 @@ def sample_df_pattern_2():
     return polars.DataFrame(raw_data_2)
 
 
+@pytest.fixture
+def sample_df_with_null():
+    return polars.DataFrame(
+        {
+            **raw_data_1,
+            **{"Q11": [None, None, None, None, None], "Q12": [[], [], [], [], []]},
+        }
+    )
+
+
 expected_df = polars.DataFrame(
     {
         "Q1": ["a", "b", "c", "a", "a"],
@@ -129,3 +139,15 @@ def test_loop_id(request, df_fixture, name_pattern):
     assert survey["Q9.2"].loop_id == "2"
     assert survey["Q10.1"].loop_id == "AB C"
     assert survey["Q10.2"].loop_id == "DE F G"
+
+
+def test_read_df_with_null(sample_df_with_null):
+    with pytest.warns(UserWarning):
+        survey = read_polars(
+            sample_df_with_null,
+            compact_ids=["Q5", "Q9"],
+            compact_separator=";",
+            name_pattern="id(.loop)?(_multi)?",
+            exclude_null=True,
+        )
+        assert survey
