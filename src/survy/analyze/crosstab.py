@@ -1,6 +1,6 @@
-from typing import Tuple
-import polars
 from copy import deepcopy
+
+import polars as pl
 from statsmodels.stats.proportion import proportions_ztest
 
 from survy.errors import DataStructureError, DataTypeError
@@ -8,12 +8,24 @@ from survy.survey._utils import QuestionType
 from survy.survey.question import Question
 
 
-def _get_df(question: Question, as_num: bool = False):
+def _get_filter(col: Question, row: Question, filter: Question | None) -> Question:
+    if filter:
+        if filter.qtype == QuestionType.NUMBER:
+            raise DataTypeError("Can not filter by NUMBER")
+
+        f = deepcopy(filter)
+        f.series = f.series.rename(f.series.name + "_FILTER")
+        return f
+
+    return Question(series=pl.Series("FILTER", ["Total"] * col.len))
+
+
+def _get_df(question: Question, as_num: bool = False) -> pl.DataFrame:
     if question.qtype == QuestionType.MULTISELECT:
         df = question.get_df(dtype="compact").explode(question.id)
         if as_num:
             df = df.select(
-                polars.col(question.id).replace_strict(
+                pl.col(question.id).replace_strict(
                     question.option_indices, default=None
                 )
             )
@@ -25,186 +37,167 @@ def _get_df(question: Question, as_num: bool = False):
     return df.with_row_index("ID")
 
 
-def _sig_test_category(
-    count_df: polars.DataFrame, cols_total: dict[str, int], sig_level: float
-) -> polars.DataFrame:
-    def _get_item_total(index):
-        return cols_total[count_df.columns[index]]
-
-    def _is_different(count: list[int], nobs: list[int], sig_level: float) -> bool:
-        if any(n == 0 for n in nobs):
-            return False
-
-        if any(c == 0 for c in count):
-            return False
-
-        _, p_value = proportions_ztest(count, nobs)
-        if p_value < sig_level:
-            return True
-        return False
-
-    def _num_to_col(n: int) -> str:
-        result = ""
-        while True:
-            result = chr(n % 26 + ord("A")) + result
-            n = n // 26 - 1
-            if n < 0:
-                break
-        return result
-
-    def _test_row(row: Tuple[int]) -> list[str]:
-        assert all([isinstance(r, int) for r in row])
-
-        results = []
-
-        for current_index, current_value in enumerate(row):
-            result = ""
-            for compare_index, compare_value in enumerate(row):
-                if current_index == compare_index:
-                    continue
-                else:
-                    count = [current_value, compare_value]
-                    nobs = [
-                        _get_item_total(current_index),
-                        _get_item_total(compare_index),
-                    ]
-                    result += (
-                        _num_to_col(compare_index)
-                        if _is_different(count, nobs, sig_level)
-                        else ""
-                    )
-            results.append(result)
-
-        assert len(results) == len(row)
-
-        return results
-
-    test_results = [_test_row(row) for row in count_df.iter_rows()]
-
-    return polars.DataFrame(test_results, schema=count_df.columns, orient="row")
-
-
-def _merge_element_dfs(
-    df1: polars.DataFrame, df2: polars.DataFrame, on_columns: list[str]
-):
-    df1 = deepcopy(df1)
-    df2 = deepcopy(df2)
-    diff = df1.shape[0] - df2.shape[0]
-    if diff > 0:
-        df2 = polars.concat(
-            [
-                df2,
-                polars.DataFrame(
-                    data=[["" for _ in df2.columns] for _ in range(diff)],
-                    schema=df2.columns,
-                    orient="row",
-                ),
-            ]
-        )
-    else:
+def _merge_element_dfs(df1: pl.DataFrame, df2: pl.DataFrame, on_columns: list[str]):
+    if df1.height < df2.height:
         raise DataStructureError("Unexpected df shape format")
+
+    if df1.height > df2.height:
+        pad = pl.DataFrame(
+            [[""] * len(df2.columns)] * (df1.height - df2.height),
+            schema=df2.columns,
+            orient="row",
+        )
+        df2 = pl.concat([df2, pad])
 
     return df1.with_columns(
         [
-            (
-                polars.col(c).cast(polars.String)
-                + polars.lit(" ").cast(polars.String)
-                + df2[c].cast(polars.String)
-            ).alias(c)
+            (pl.col(c).cast(pl.String) + pl.lit(" ") + df2[c].cast(pl.String)).alias(c)
             if c in on_columns
-            else polars.col(c).alias(c)
+            else pl.col(c)
             for c in df1.columns
         ]
     )
 
 
-def _crosstab_category(
-    df: polars.DataFrame, col: Question, row: Question, percent: bool, sig_level: float
-):
-    def _get_total_count_df(count_df: polars.DataFrame):
-        row_total = polars.DataFrame(
+class Crosstaber:
+    def __init__(self, col: Question, row: Question, filter: Question | None = None):
+        self.col = deepcopy(col)
+        self.row = deepcopy(row)
+        self.filter = _get_filter(col, row, filter)
+
+    def get_df(self, as_num: bool) -> pl.DataFrame:
+        col_df = _get_df(self.col, as_num=False)
+        row_df = _get_df(self.row, as_num=as_num)
+        filter_df = _get_df(self.filter, as_num=False)
+
+        return col_df.join(row_df, on="ID", how="left").join(
+            filter_df, on="ID", how="left"
+        )
+
+    def _build_count_df(self, filtered_option: str) -> pl.DataFrame:
+        df = self.get_df(as_num=False)
+
+        filtered_df = df.filter(pl.col(self.filter.id) == filtered_option)
+
+        count_df = filtered_df.pivot(
+            on=self.col.id,
+            index=self.row.id,
+            values="ID",
+            aggregate_function=pl.element().n_unique(),
+        ).fill_null(0)
+
+        return count_df.with_columns(pl.col(self.row.id).cast(pl.String))
+
+    def _add_totals(self, count_df: pl.DataFrame) -> pl.DataFrame:
+        count_df = count_df.with_columns(pl.col(self.row.id).cast(pl.String))
+
+        col_total = pl.DataFrame(self.col.sub_bases, orient="row")
+
+        col_total = col_total.with_columns(pl.lit("Total").alias(self.row.id)).select(
+            count_df.columns
+        )
+
+        result = pl.concat([count_df, col_total], how="vertical_relaxed")
+
+        row_keys = list(self.row.sub_bases.keys())
+        row_vals = list(self.row.sub_bases.values())
+
+        row_total = pl.DataFrame(
             {
-                row.id: list(row.sub_bases.keys()) + ["Total"],
-                "Total": list(row.sub_bases.values()) + [row.base],
-            },
+                self.row.id: [str(k) for k in row_keys] + ["Total"],
+                "Total": row_vals + [self.row.base],
+            }
         )
 
-        col_total = polars.DataFrame(col.sub_bases)
+        return result.join(row_total, on=self.row.id, how="left")
 
-        return polars.concat(
-            [
-                count_df,
-                col_total.with_columns(polars.lit("Total").alias(row.id)).select(
-                    count_df.columns
-                ),
-            ],
-            how="vertical_relaxed",
-        ).join(row_total, on=row.id, how="left")
+    def crosstab_count(self, filtered_option: str) -> pl.DataFrame:
+        count_df = self._build_count_df(filtered_option)
+        return self._add_totals(count_df)
 
-    def _get_total_percent_df(total_count_df: polars.DataFrame):
-        col_sub_bases = {**col.sub_bases, **{"Total": col.base}}
-        return total_count_df.with_columns(
-            [
-                polars.col(col) / col_sub_bases[col]
-                for col in total_count_df.columns
-                if col != row.id
-            ]
+    def crosstab_percent(self, filtered_option: str) -> pl.DataFrame:
+        df = self.crosstab_count(filtered_option)
+
+        col_totals = {**self.col.sub_bases, "Total": self.col.base}
+
+        return df.with_columns(
+            [(pl.col(c) / col_totals[c]) for c in df.columns if c != self.row.id]
         )
 
-    count_df = df.pivot(
-        on=col.id,
-        index=row.id,
-        values="ID",
-        aggregate_function=polars.element().n_unique(),
-    ).fill_null(0)
+    def crosstab_number(self, filtered_option: str) -> pl.DataFrame:
+        df = self.get_df(as_num=True)
+        filtered_df = df.filter(pl.col(self.filter.id) == filtered_option)
 
-    total_count_df = _get_total_count_df(count_df)
-
-    if sig_level:
-        sig_test_df = _sig_test_category(
-            count_df.drop(row.id), col.sub_bases, sig_level
-        )
-        if not percent:
-            return _merge_element_dfs(
-                total_count_df,
-                sig_test_df,
-                [c for c in total_count_df.columns if c not in [row.id, "Total"]],
+        return (
+            filtered_df.group_by(self.col.id)
+            .agg(
+                pl.col(self.row.id).mean().alias("mean"),
+                pl.col(self.row.id).std().alias("std"),
+                pl.col(self.row.id).var().alias("var"),
+                pl.col(self.row.id).median().alias("median"),
+                pl.col(self.row.id).max().alias("max"),
+                pl.col(self.row.id).min().alias("min"),
             )
-        else:
-            total_percent_df = _get_total_percent_df(total_count_df)
-            return _merge_element_dfs(
-                total_percent_df,
-                sig_test_df,
-                [c for c in total_percent_df.columns if c not in [row.id, "Total"]],
-            )
-    else:
-        if not percent:
-            return total_count_df
-        else:
-            total_percent_df = _get_total_percent_df(total_count_df)
-            return total_percent_df
-
-
-def _crosstab_num(df: polars.DataFrame, col: Question, row: Question):
-    return (
-        df.group_by(by=col.id)
-        .agg(
-            polars.col(row.id).mean().alias("mean"),
-            polars.col(row.id).std().alias("std"),
-            polars.col(row.id).var().alias("var"),
-            polars.col(row.id).median().alias("median"),
-            polars.col(row.id).max().alias("max"),
-            polars.col(row.id).min().alias("min"),
+            .sort(self.col.id)
         )
-        .rename({"by": col.id})
-        .sort(col.id)
-    )
 
+    def sig_test(self, filtered_option: str, sig_level: float) -> pl.DataFrame:
+        df = self._build_count_df(filtered_option).drop(self.row.id)
 
-def _default_filter(len_: int):
-    return Question(
-        series=polars.Series("FILTER", ["Total" for _ in range(len_)]),
-    )
+        def _get_total(i):
+            return self.col.sub_bases[df.columns[i]]
+
+        def _is_diff(count, nobs):
+            if any(n == 0 for n in nobs) or any(c == 0 for c in count):
+                return False
+            _, p = proportions_ztest(count, nobs)
+            return p < sig_level
+
+        def _col_label(n):
+            s = ""
+            while n >= 0:
+                s = chr(n % 26 + 65) + s
+                n = n // 26 - 1
+            return s
+
+        results = []
+        for row in df.iter_rows():
+            row_res = []
+            for i, val in enumerate(row):
+                label = ""
+                for j, other in enumerate(row):
+                    if i != j and _is_diff(
+                        [val, other], [_get_total(i), _get_total(j)]
+                    ):
+                        label += _col_label(j)
+                row_res.append(label)
+            results.append(row_res)
+
+        return pl.DataFrame(results, schema=df.columns, orient="row")
+
+    def run(self, as_num: bool, as_percent: bool, sig_level: float):
+        results = {}
+
+        for option in self.filter.option_indices.keys():
+            if as_num:
+                results[option] = self.crosstab_number(option)
+                continue
+
+            base_df = (
+                self.crosstab_percent(option)
+                if as_percent
+                else self.crosstab_count(option)
+            )
+
+            sig_df = self.sig_test(option, sig_level)
+
+            results[option] = _merge_element_dfs(
+                base_df,
+                sig_df,
+                [c for c in base_df.columns if c not in [self.row.id, "Total"]],
+            )
+
+        return results
 
 
 def crosstab(
@@ -214,41 +207,6 @@ def crosstab(
     as_num: bool = False,
     as_percent: bool = False,
     sig_level: float = 0,
-) -> dict[str, polars.DataFrame]:
-    col = deepcopy(col)
-    row = deepcopy(row)
-    filter = deepcopy(filter)
-
-    if filter is None:
-        filter = _default_filter(col.len)
-
-    if filter.id in [col.id, row.id]:
-        filter.series = filter.series.rename(filter.series.name + "_FILTER")
-
-    if filter.qtype == QuestionType.NUMBER:
-        raise DataTypeError("Can not filter by NUMBER")
-
-    if col.qtype == QuestionType.NUMBER:
-        raise DataTypeError("Can not categorize by NUMBER")
-
-    if row.qtype == QuestionType.NUMBER:
-        as_num = True
-
-    results = {}
-
-    col_df = _get_df(col, as_num=False)
-    row_df = _get_df(row, as_num)
-    filter_df = _get_df(filter, as_num=False)
-    df = col_df.join(row_df, on="ID", how="left").join(filter_df, on="ID", how="left")
-
-    for option, _ in filter.option_indices.items():
-        filtered_df = df.filter(polars.col(filter.id) == option)
-
-        if as_num:
-            results[option] = _crosstab_num(filtered_df, col, row)
-        else:
-            results[option] = _crosstab_category(
-                filtered_df, col, row, as_percent, sig_level
-            )
-
-    return results
+) -> dict[str, pl.DataFrame]:
+    crosstaber = Crosstaber(col, row, filter)
+    return crosstaber.run(as_num, as_percent, sig_level)
