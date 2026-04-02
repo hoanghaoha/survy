@@ -98,7 +98,9 @@ expected_df = polars.DataFrame(
         ("sample_df_pattern_2", "(multi_)?id(.loop)?"),
     ],
 )
-def test_read_polars(request, df_fixture, name_pattern):
+def test_read_polars(
+    request: pytest.FixtureRequest, df_fixture: str, name_pattern: str
+):
     df = request.getfixturevalue(df_fixture)
     survey = read_polars(
         df,
@@ -120,7 +122,7 @@ def test_read_polars(request, df_fixture, name_pattern):
         ("sample_df_pattern_2", "(multi_)?id(.loop)?"),
     ],
 )
-def test_loop_id(request, df_fixture, name_pattern):
+def test_loop_id(request: pytest.FixtureRequest, df_fixture: str, name_pattern: str):
     df = request.getfixturevalue(df_fixture)
     survey = read_polars(
         df,

@@ -41,7 +41,7 @@ def make_sample_survey():
     return Survey(questions=[q1, q2, q3])
 
 
-def test_read_csv_success(tmp_path):
+def test_read_csv_success(tmp_path: Path):
     file_path, df = make_sample_csv(tmp_path)
 
     survey = read_csv(file_path, compact_ids=["Q3"])
@@ -54,7 +54,7 @@ def test_read_csv_success(tmp_path):
         assert q.id == col
 
 
-def test_read_csv_path_as_str(tmp_path):
+def test_read_csv_path_as_str(tmp_path: Path):
     file_path, _ = make_sample_csv(tmp_path)
 
     survey = read_csv(str(file_path))
@@ -62,7 +62,7 @@ def test_read_csv_path_as_str(tmp_path):
     assert isinstance(survey, Survey)
 
 
-def test_read_csv_wrong_extension(tmp_path):
+def test_read_csv_wrong_extension(tmp_path: Path):
     file_path = tmp_path / "bad.txt"
     file_path.write_text("not csv")
 
@@ -75,7 +75,7 @@ def test_read_csv_missing_file():
         read_csv("non_existent.csv")
 
 
-def test_to_csv_success_compact(tmp_path):
+def test_to_csv_success_compact(tmp_path: Path):
     survey = make_sample_survey()
 
     to_csv(survey, tmp_path, name="out", compact=True)
@@ -85,7 +85,7 @@ def test_to_csv_success_compact(tmp_path):
     assert (tmp_path / "out_options_info.csv").exists()
 
 
-def test_to_csv_success_non_compact(tmp_path):
+def test_to_csv_success_non_compact(tmp_path: Path):
     survey = make_sample_survey()
 
     to_csv(survey, tmp_path, name="out", compact=False)
@@ -93,7 +93,7 @@ def test_to_csv_success_non_compact(tmp_path):
     assert (tmp_path / "out_data.csv").exists()
 
 
-def test_to_csv_path_as_str(tmp_path):
+def test_to_csv_path_as_str(tmp_path: Path):
     survey = make_sample_survey()
 
     to_csv(survey, str(tmp_path), name="out")
@@ -101,7 +101,7 @@ def test_to_csv_path_as_str(tmp_path):
     assert (tmp_path / "out_data.csv").exists()
 
 
-def test_to_csv_output_content(tmp_path):
+def test_to_csv_output_content(tmp_path: Path):
     survey = make_sample_survey()
 
     to_csv(survey, tmp_path, name="out")
@@ -113,7 +113,7 @@ def test_to_csv_output_content(tmp_path):
     assert "Q3" in df.columns
 
 
-def test_to_csv_write_error(tmp_path, monkeypatch):
+def test_to_csv_write_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     survey = make_sample_survey()
 
     def mock_write_csv(*args, **kwargs):

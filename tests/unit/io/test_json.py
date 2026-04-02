@@ -41,7 +41,7 @@ def make_sample_json(path: Path):
     return file_path, data
 
 
-def test_read_json_success(tmp_path):
+def test_read_json_success(tmp_path: Path):
     file_path, data = make_sample_json(tmp_path)
 
     survey = read_json(file_path)
@@ -63,7 +63,7 @@ def test_read_json_missing_file():
         read_json("non_existent_file.json")
 
 
-def test_read_json_invalid_json(tmp_path):
+def test_read_json_invalid_json(tmp_path: Path):
     file_path = tmp_path / "bad.json"
     file_path.write_text("invalid json")
 
@@ -71,7 +71,7 @@ def test_read_json_invalid_json(tmp_path):
         read_json(file_path)
 
 
-def test_read_json_missing_questions_key(tmp_path):
+def test_read_json_missing_questions_key(tmp_path: Path):
     file_path = tmp_path / "bad.json"
     file_path.write_text(json.dumps({"wrong_key": []}))
 
@@ -97,7 +97,7 @@ def make_sample_survey():
     return Survey(questions=[q1, q2, q3])
 
 
-def test_to_json_success(tmp_path):
+def test_to_json_success(tmp_path: Path):
     survey = make_sample_survey()
 
     to_json(survey, tmp_path, name="out.json")
@@ -112,7 +112,7 @@ def test_to_json_success(tmp_path):
     assert len(data["questions"]) == 3
 
 
-def test_to_json_path_as_str(tmp_path):
+def test_to_json_path_as_str(tmp_path: Path):
     survey = make_sample_survey()
 
     to_json(survey, str(tmp_path), name="out.json")
@@ -120,7 +120,7 @@ def test_to_json_path_as_str(tmp_path):
     assert (tmp_path / "out.json").exists()
 
 
-def test_to_json_write_error(tmp_path, monkeypatch):
+def test_to_json_write_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     survey = make_sample_survey()
 
     def mock_open(*args, **kwargs):
