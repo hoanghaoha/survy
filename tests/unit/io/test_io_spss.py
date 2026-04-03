@@ -3,19 +3,19 @@ import polars as pl
 import pytest
 
 from survy.io.spss import to_spss
-from survy.survey.question import Question
+from survy.survey.variable import Variable
 from survy.survey.survey import Survey
 
 
 def make_sample_survey():
-    q1 = Question(series=pl.Series("Q1", ["A", "A", "B"]))
-    q1.label = "Question 1"
-    q1.option_indices = {"A": 1, "B": 2}
+    q1 = Variable(series=pl.Series("Q1", ["A", "A", "B"]))
+    q1.label = "Variable 1"
+    q1.value_indices = {"A": 1, "B": 2}
 
-    q2 = Question(series=pl.Series("Q2", [3, 4, 5]))
-    q2.label = "Question 2"
+    q2 = Variable(series=pl.Series("Q2", [3, 4, 5]))
+    q2.label = "Variable 2"
 
-    survey = Survey(questions=[q1, q2])
+    survey = Survey(variables=[q1, q2])
 
     return survey
 

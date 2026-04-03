@@ -55,7 +55,7 @@ def extract_mapping(li: list[Any | list[Any]]) -> dict:
 def parse_id(s: str, fmt: str) -> dict:
     """Parse a structured identifier string using a format pattern.
 
-    This function extracts named components (e.g., ``id``, ``loop``, ``multi``)
+    This function extracts named components (e.g., ``id``, ``multi``)
     from a string based on a format template. The format is converted into a
     regular expression with named capture groups.
 
@@ -65,7 +65,6 @@ def parse_id(s: str, fmt: str) -> dict:
         fmt (str):
             A format string defining the expected structure. Supported tokens:
             - ``id``: Base identifier
-            - ``loop``: Loop identifier
             - ``multi``: Multi-select identifier
 
             Separators defined in ``survy.separator.SEPARATORS`` are treated as
@@ -74,7 +73,7 @@ def parse_id(s: str, fmt: str) -> dict:
     Returns:
         dict:
             A dictionary of extracted components, where keys correspond to
-            tokens in the format string (e.g., ``id``, ``loop``, ``multi``).
+            tokens in the format string (e.g., ``id``, ``multi``).
 
     Raises:
         ParseError:
@@ -86,23 +85,17 @@ def parse_id(s: str, fmt: str) -> dict:
         - The match must span the entire string.
 
     Examples:
-        >>> parse_id("Q1_1", "id_loop")
-        {'id': 'Q1', 'loop': '1'}
+        >>> parse_id("Q1_1", "id_multi")
+        {'id': 'Q1', 'multi': '1'}
 
-        >>> parse_id("Q2/A", "id/multi")
-        {'id': 'Q2', 'multi': 'A'}
+        >>> parse_id("Q1_1", "id/multi")
+        {'id': 'Q1', 'multi': '1'}
 
-        >>> parse_id("Q1.1_2", "id.loop_multi")
-        {
-            'id': "Q1",
-            'loop': '1',
-            'multi': '2',
-        }
 
-        >>> parse_id("invalid", "id_loop")
+        >>> parse_id("invalid", "id_multi")
         Traceback (most recent call last):
             ...
-        ParseError: Can not match invalid with pattern id_loop
+        ParseError: Can not match invalid with pattern id_multi
     """
 
     def build_regex(fmt: str):
@@ -110,7 +103,6 @@ def parse_id(s: str, fmt: str) -> dict:
 
         TOKEN_REGEX = {
             "id": rf"(?P<id>[^{excluded}]+)",
-            "loop": rf"(?P<loop>[^{excluded}]+)",
             "multi": rf"(?P<multi>[^{excluded}]+)",
         }
 

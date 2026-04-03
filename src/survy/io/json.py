@@ -3,41 +3,40 @@ from pathlib import Path
 
 import polars
 
-from survy.survey.question import Question
+from survy.survey.variable import Variable
 from survy.survey.survey import Survey
 
 
 def read_json(path: str | Path) -> Survey:
     """Load a survey from a JSON file.
 
-    The JSON file must contain a top-level "questions" key. Each item is
-    used to construct a ``Question`` object and populate a ``Survey``.
+    The JSON file must contain a top-level "variables" key. Each item is
+    used to construct a ``Variable`` object and populate a ``Survey``.
 
     Args:
         path (str | pathlib.Path): Path to the JSON file.
 
     Returns:
-        Survey: A Survey instance containing the loaded questions.
+        Survey: A Survey instance containing the loaded variables.
 
     Raises:
         FileNotFoundError: If the file does not exist.
         json.JSONDecodeError: If the file contains invalid JSON.
-        KeyError: If required keys (e.g., "questions") are missing.
+        KeyError: If required keys (e.g., "variables") are missing.
     """
     with open(path, "r") as f:
         data = json.load(f)
 
-    questions = []
+    variables = []
 
-    for d in data["questions"]:
-        question = Question(series=polars.Series(d["id"], d["data"]))
-        question.label = d["label"]
-        if d["option_indices"]:
-            question.option_indices = d["option_indices"]
-        question.loop_id = d["loop_id"]
-        questions.append(question)
+    for d in data["variables"]:
+        variable = Variable(series=polars.Series(d["id"], d["data"]))
+        variable.label = d["label"]
+        if d["value_indices"]:
+            variable.value_indices = d["value_indices"]
+        variables.append(variable)
 
-    return Survey(questions=questions)
+    return Survey(variables=variables)
 
 
 def to_json(
@@ -45,7 +44,7 @@ def to_json(
 ) -> None:
     """Serialize a Survey object to a JSON file.
 
-    Each question in the survey is converted to a dictionary using its
+    Each variable in the survey is converted to a dictionary using its
     ``to_dict()`` method before being written to disk.
 
     Args:
@@ -64,7 +63,7 @@ def to_json(
         path = Path(path)
 
     data = {
-        "questions": [question.to_dict() for question in survey.questions],
+        "variables": [variable.to_dict() for variable in survey.variables],
     }
 
     with open(path / name, "w", encoding=encoding) as f:

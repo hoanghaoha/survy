@@ -1,31 +1,31 @@
 import polars
-from survy.survey._utils import QuestionType
+from survy.survey._utils import VarType
 from survy.survey.strategies.base_strategy import BaseStrategy
 from survy.utils.spss import variable_labels, variable_level
 
 
 class NumberStrategy(BaseStrategy):
     """
-    Strategy for handling numeric (continuous or discrete) survey questions.
+    Strategy for handling numeric (continuous or discrete) survey variables.
     """
 
-    def __init__(self, series: polars.Series, option_indices: dict[str, int]) -> None:
+    def __init__(self, series: polars.Series, value_indices: dict[str, int]) -> None:
         """
         Initialize NumberStrategy.
 
         Args:
             series (polars.Series): Series containing numeric responses.
-            option_indices (dict[str, int]): Not used for numeric questions,
+            value_indices (dict[str, int]): Not used for numeric variables,
                 but kept for interface consistency.
         """
         self.series = series
-        self.option_indices = option_indices
+        self.value_indices = value_indices
 
     def get_df(self, **kwargs) -> polars.DataFrame:
         """
         Convert the series into a DataFrame representation.
 
-        For numeric questions, no transformation is applied.
+        For numeric variables, no transformation is applied.
 
         Args:
             **kwargs: Ignored (kept for interface compatibility).
@@ -37,7 +37,7 @@ class NumberStrategy(BaseStrategy):
         return df
 
     @property
-    def sub_bases(self) -> dict[str, int]:
+    def frequencies(self) -> dict[str, int]:
         """
         Compute frequency counts for each numeric value.
 
@@ -62,14 +62,14 @@ class NumberStrategy(BaseStrategy):
 
     def get_sps(self, label: str) -> str:
         """
-        Generate SPSS syntax for a numeric question.
+        Generate SPSS syntax for a numeric variable.
 
         This includes:
         - Variable label
         - Measurement level (SCALE)
 
         Args:
-            label (str): Question label.
+            label (str): Variable label.
 
         Returns:
             str: Combined SPSS syntax string.
@@ -83,10 +83,8 @@ class NumberStrategy(BaseStrategy):
         assert len(label) < 250
         label = label.replace("'", "").replace('"', "")
 
-        var_label_str = variable_labels(
-            QuestionType.NUMBER, id, label, self.option_indices
-        )
+        var_label_str = variable_labels(VarType.NUMBER, id, label, self.value_indices)
 
-        var_level_str = variable_level(QuestionType.NUMBER, id, "SCALE")
+        var_level_str = variable_level(VarType.NUMBER, id, "SCALE")
 
         return "\n".join([var_label_str, var_level_str])

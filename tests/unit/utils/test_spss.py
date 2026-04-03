@@ -7,23 +7,23 @@ from survy.utils.spss import (
     mrset,
     ctables,
 )
-from survy.survey.question import QuestionType
+from survy.survey.variable import VarType
 from survy.separator import MULTISELECT
 
 
 def test_variable_labels_select():
-    result = variable_labels(QuestionType.SELECT, "Q1", "Age")
+    result = variable_labels(VarType.SELECT, "Q1", "Age")
     assert result == "VARIABLE LABELS Q1 'Age'."
 
 
 def test_variable_labels_number():
-    result = variable_labels(QuestionType.NUMBER, "Q1", "Age")
+    result = variable_labels(VarType.NUMBER, "Q1", "Age")
     assert result == "VARIABLE LABELS Q1 'Age'."
 
 
 def test_variable_labels_multiselect():
     result = variable_labels(
-        QuestionType.MULTISELECT,
+        VarType.MULTISELECT,
         "Q1",
         "Hobbies",
         {"Sports": 1, "Music": 2},
@@ -38,7 +38,7 @@ def test_variable_labels_multiselect():
 
 
 def test_variable_labels_multiselect_empty():
-    result = variable_labels(QuestionType.MULTISELECT, "Q1", "Hobbies", {})
+    result = variable_labels(VarType.MULTISELECT, "Q1", "Hobbies", {})
     assert result == ""
 
 
@@ -48,13 +48,13 @@ def test_variable_labels_invalid_type():
 
 
 def test_variable_level_select():
-    result = variable_level(QuestionType.SELECT, "Q1", "NOMINAL")
+    result = variable_level(VarType.SELECT, "Q1", "NOMINAL")
     assert result == "VARIABLE LEVEL Q1 (NOMINAL)."
 
 
 def test_variable_level_multiselect():
     result = variable_level(
-        QuestionType.MULTISELECT,
+        VarType.MULTISELECT,
         "Q1",
         "NOMINAL",
         {"A": 1, "B": 2},
@@ -69,13 +69,13 @@ def test_variable_level_multiselect():
 
 
 def test_variable_level_multiselect_empty():
-    result = variable_level(QuestionType.MULTISELECT, "Q1", "NOMINAL", {})
+    result = variable_level(VarType.MULTISELECT, "Q1", "NOMINAL", {})
     assert result == ""
 
 
 def test_value_labels_select():
     result = value_labels(
-        QuestionType.SELECT,
+        VarType.SELECT,
         "Q1",
         {"Yes": 1, "No": 0},
     )
@@ -85,7 +85,7 @@ def test_value_labels_select():
 
 def test_value_labels_multiselect():
     result = value_labels(
-        QuestionType.MULTISELECT,
+        VarType.MULTISELECT,
         "Q1",
         {"A": 1, "B": 2},
     )
@@ -99,7 +99,7 @@ def test_value_labels_multiselect():
 
 
 def test_value_labels_empty():
-    result = value_labels(QuestionType.SELECT, "Q1", {})
+    result = value_labels(VarType.SELECT, "Q1", {})
     assert result == ""
 
 
@@ -118,26 +118,26 @@ def test_mrset_empty():
 
 
 def test_ctables_select():
-    result = ctables({"Q1": QuestionType.SELECT})
+    result = ctables({"Q1": VarType.SELECT})
     assert "Q1 [C][COUNT F40.0, TOTALS[COUNT F40.0]] +" in result
 
 
 def test_ctables_multiselect():
-    result = ctables({"Q1": QuestionType.MULTISELECT})
+    result = ctables({"Q1": VarType.MULTISELECT})
     assert "$Q1 [C][COUNT F40.0, TOTALS[COUNT F40.0]] +" in result
 
 
 def test_ctables_number():
-    result = ctables({"Q1": QuestionType.NUMBER})
+    result = ctables({"Q1": VarType.NUMBER})
     assert "Q1 [MEAN COMMA40.2] +" in result
 
 
 def test_ctables_mixed():
     result = ctables(
         {
-            "Q1": QuestionType.SELECT,
-            "Q2": QuestionType.MULTISELECT,
-            "Q3": QuestionType.NUMBER,
+            "Q1": VarType.SELECT,
+            "Q2": VarType.MULTISELECT,
+            "Q3": VarType.NUMBER,
         }
     )
 
@@ -147,7 +147,7 @@ def test_ctables_mixed():
 
 
 def test_ctables_structure():
-    result = ctables({"Q1": QuestionType.SELECT})
+    result = ctables({"Q1": VarType.SELECT})
 
     assert result.startswith("CTABLES")
     assert "/TABLE" in result

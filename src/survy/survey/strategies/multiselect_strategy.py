@@ -2,29 +2,29 @@ from typing import Literal
 import warnings
 import polars
 from survy.separator import MULTISELECT
-from survy.survey._utils import QuestionType
+from survy.survey._utils import VarType
 from survy.survey.strategies.base_strategy import BaseStrategy
 from survy.utils.spss import mrset, value_labels, variable_labels, variable_level
 
 
 class MultiSelectStrategy(BaseStrategy):
     """
-    Strategy for handling multi-select survey questions.
+    Strategy for handling multi-select survey variables.
 
-    Multi-select questions contain multiple responses per entry,
+    Multi-select variables contain multiple responses per entry,
     typically stored as a list of selected options.
     """
 
-    def __init__(self, series: polars.Series, option_indices: dict[str, int]) -> None:
+    def __init__(self, series: polars.Series, value_indices: dict[str, int]) -> None:
         """
         Initialize MultiSelectStrategy.
 
         Args:
             series (polars.Series): Series containing list-like responses.
-            option_indices (dict[str, int]): Mapping of option labels to indices.
+            value_indices (dict[str, int]): Mapping of option labels to indices.
         """
         self.series = series
-        self.option_indices = option_indices
+        self.value_indices = value_indices
 
     def get_df(self, **kwargs) -> polars.DataFrame:
         """
@@ -62,7 +62,7 @@ class MultiSelectStrategy(BaseStrategy):
                         .list.contains(val)
                         .cast(polars.Int8)
                         .alias(f"{id}{MULTISELECT}{index}")
-                        for val, index in self.option_indices.items()
+                        for val, index in self.value_indices.items()
                     ]
                 ).drop(id)
             case "text":
@@ -73,14 +73,14 @@ class MultiSelectStrategy(BaseStrategy):
                         .cast(polars.Int8)
                         .replace_strict({1: val}, default=None)
                         .alias(f"{id}{MULTISELECT}{index}")
-                        for val, index in self.option_indices.items()
+                        for val, index in self.value_indices.items()
                     ]
                 ).drop(id)
             case _:
                 raise KeyError(f"Unsupported dtype: {dtype}")
 
     @property
-    def sub_bases(self) -> dict[str, int]:
+    def frequencies(self) -> dict[str, int]:
         """
         Compute frequency counts for each selected option.
 
@@ -108,7 +108,7 @@ class MultiSelectStrategy(BaseStrategy):
 
     def get_sps(self, label: str) -> str:
         """
-        Generate SPSS syntax for a multi-select question.
+        Generate SPSS syntax for a multi-select variable.
 
         This includes:
         - Variable labels
@@ -117,7 +117,7 @@ class MultiSelectStrategy(BaseStrategy):
         - MRSETS definition (if applicable)
 
         Args:
-            label (str): Question label.
+            label (str): Variable label.
 
         Returns:
             str: Combined SPSS syntax string.
@@ -133,19 +133,17 @@ class MultiSelectStrategy(BaseStrategy):
         label = label.replace("'", "").replace('"', "")
 
         var_label_str = variable_labels(
-            QuestionType.MULTISELECT, id, label, self.option_indices
+            VarType.MULTISELECT, id, label, self.value_indices
         )
-        value_label_str = value_labels(
-            QuestionType.MULTISELECT, id, self.option_indices
-        )
+        value_label_str = value_labels(VarType.MULTISELECT, id, self.value_indices)
         var_level_str = variable_level(
-            QuestionType.MULTISELECT, id, "NOMINAL", self.option_indices
+            VarType.MULTISELECT, id, "NOMINAL", self.value_indices
         )
 
-        if len(self.option_indices) == 1:
+        if len(self.value_indices) == 1:
             mrset_str = ""
             warnings.warn(f"{id} have only 1 key for option. Mrset will be None")
         else:
-            mrset_str = mrset(id, label, self.option_indices)
+            mrset_str = mrset(id, label, self.value_indices)
 
         return "\n".join([var_label_str, value_label_str, var_level_str, mrset_str])

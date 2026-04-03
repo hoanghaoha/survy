@@ -4,32 +4,30 @@ import polars as pl
 from statsmodels.stats.proportion import proportions_ztest
 
 from survy.errors import DataStructureError, DataTypeError
-from survy.survey._utils import QuestionType
-from survy.survey.question import Question
+from survy.survey._utils import VarType
+from survy.survey.variable import Variable
 
 
-def _get_filter(col: Question, row: Question, filter: Question | None) -> Question:
+def _get_filter(col: Variable, row: Variable, filter: Variable | None) -> Variable:
     if filter:
-        if filter.qtype == QuestionType.NUMBER:
+        if filter.vtype == VarType.NUMBER:
             raise DataTypeError("Can not filter by NUMBER")
 
         f = deepcopy(filter)
         f.series = f.series.rename(f.series.name + "_FILTER")
         return f
 
-    return Question(series=pl.Series("FILTER", ["Total"] * col.len))
+    return Variable(series=pl.Series("FILTER", ["Total"] * col.len))
 
 
-def _get_df(question: Question, as_num: bool = False) -> pl.DataFrame:
-    if question.qtype == QuestionType.MULTISELECT:
+def _get_df(question: Variable, as_num: bool = False) -> pl.DataFrame:
+    if question.vtype == VarType.MULTISELECT:
         df = question.get_df(dtype="compact").explode(question.id)
         if as_num:
             df = df.select(
-                pl.col(question.id).replace_strict(
-                    question.option_indices, default=None
-                )
+                pl.col(question.id).replace_strict(question.value_indices, default=None)
             )
-    elif question.qtype == QuestionType.SELECT:
+    elif question.vtype == VarType.SELECT:
         df = question.get_df(dtype="number" if as_num else "text")
     else:
         df = question.get_df(dtype="number")
@@ -60,7 +58,7 @@ def _merge_element_dfs(df1: pl.DataFrame, df2: pl.DataFrame, on_columns: list[st
 
 
 class Crosstaber:
-    def __init__(self, col: Question, row: Question, filter: Question | None = None):
+    def __init__(self, col: Variable, row: Variable, filter: Variable | None = None):
         self.col = deepcopy(col)
         self.row = deepcopy(row)
         self.filter = _get_filter(col, row, filter)
@@ -91,7 +89,7 @@ class Crosstaber:
     def _add_totals(self, count_df: pl.DataFrame) -> pl.DataFrame:
         count_df = count_df.with_columns(pl.col(self.row.id).cast(pl.String))
 
-        col_total = pl.DataFrame(self.col.sub_bases, orient="row")
+        col_total = pl.DataFrame(self.col.frequencies, orient="row")
 
         col_total = col_total.with_columns(pl.lit("Total").alias(self.row.id)).select(
             count_df.columns
@@ -99,8 +97,8 @@ class Crosstaber:
 
         result = pl.concat([count_df, col_total], how="vertical_relaxed")
 
-        row_keys = list(self.row.sub_bases.keys())
-        row_vals = list(self.row.sub_bases.values())
+        row_keys = list(self.row.frequencies.keys())
+        row_vals = list(self.row.frequencies.values())
 
         row_total = pl.DataFrame(
             {
@@ -118,7 +116,7 @@ class Crosstaber:
     def crosstab_percent(self, filtered_option: str) -> pl.DataFrame:
         df = self.crosstab_count(filtered_option)
 
-        col_totals = {**self.col.sub_bases, "Total": self.col.base}
+        col_totals = {**self.col.frequencies, "Total": self.col.base}
 
         return df.with_columns(
             [(pl.col(c) / col_totals[c]) for c in df.columns if c != self.row.id]
@@ -145,7 +143,7 @@ class Crosstaber:
         df = self._build_count_df(filtered_option).drop(self.row.id)
 
         def _get_total(i):
-            return self.col.sub_bases[df.columns[i]]
+            return self.col.frequencies[df.columns[i]]
 
         def _is_diff(count, nobs):
             if any(n == 0 for n in nobs) or any(c == 0 for c in count):
@@ -178,7 +176,7 @@ class Crosstaber:
     def run(self, as_num: bool, as_percent: bool, sig_level: float):
         results = {}
 
-        for option in self.filter.option_indices.keys():
+        for option in self.filter.value_indices.keys():
             if as_num:
                 results[option] = self.crosstab_number(option)
                 continue
@@ -201,9 +199,9 @@ class Crosstaber:
 
 
 def crosstab(
-    col: Question,
-    row: Question,
-    filter: Question | None = None,
+    col: Variable,
+    row: Variable,
+    filter: Variable | None = None,
     as_num: bool = False,
     as_percent: bool = False,
     sig_level: float = 0,

@@ -3,8 +3,7 @@ import warnings
 from dataclasses import dataclass, field
 import polars
 
-from survy.separator import LOOP
-from survy.survey.question import Question
+from survy.survey.variable import Variable
 from survy.survey.survey import Survey
 from survy.utils.functions import parse_id
 
@@ -21,56 +20,38 @@ class PolarReader:
     def _process_list(li: list) -> list:
         return sorted([i for i in li if i])
 
-    def _parse_id(self, id: str) -> tuple[str, str | None, str | None]:
+    def _parse_id(self, id: str) -> tuple[str, str | None]:
         parsed_items = parse_id(id, self.name_pattern)
-        return parsed_items["id"], parsed_items.get("loop"), parsed_items.get("multi")
+        return parsed_items["id"], parsed_items.get("multi")
 
-    def _read_multi(self, id: str, data: Iterable, loop_id: str | None) -> None:
-        if loop_id:
-            self.type_map[id] = "multi_loop"
-            self.data.setdefault(id, {})
-            self.data[id].setdefault(loop_id, [])
-            self.data[id][loop_id].append(data)
-        else:
-            self.type_map[id] = "multi"
-            self.data.setdefault(id, [])
-            self.data[id].append(data)
+    def _read_multi(self, id: str, data: Iterable) -> None:
+        self.type_map[id] = "multi"
+        self.data.setdefault(id, [])
+        self.data[id].append(data)
 
-    def _read_multi_compact(
-        self, id: str, data: Iterable[str | None], loop_id: str | None
-    ) -> None:
+    def _read_multi_compact(self, id: str, data: Iterable[str | None]) -> None:
         splitted_data = [
             PolarReader._process_list(d.split(self.compact_separator)) if d else []
             for d in data
         ]
 
-        if loop_id:
-            self.type_map[id] = "multi_compact_loop"
-            self.data.setdefault(id, {})
-            self.data[id][loop_id] = splitted_data
-        else:
-            self.type_map[id] = "multi_compact"
-            self.data[id] = splitted_data
+        self.type_map[id] = "multi_compact"
+        self.data[id] = splitted_data
 
-    def _read_normal(self, id: str, data: Iterable, loop_id: str | None) -> None:
+    def _read_normal(self, id: str, data: Iterable) -> None:
         data = [d if d != "" else None for d in data]
-        if loop_id:
-            self.type_map[id] = "normal_loop"
-            self.data.setdefault(id, {})
-            self.data[id][loop_id] = data
-        else:
-            self.type_map[id] = "normal"
-            self.data[id] = data
+        self.type_map[id] = "normal"
+        self.data[id] = data
 
     def _read_series(self, series: polars.Series) -> None:
-        id, loop_id, multi_id = self._parse_id(series.name)
+        id, multi_id = self._parse_id(series.name)
         data = series.to_list()
         if id in self.compact_ids:
-            self._read_multi_compact(id, data, loop_id)
+            self._read_multi_compact(id, data)
         elif multi_id:
-            self._read_multi(id, data, loop_id)
+            self._read_multi(id, data)
         else:
-            self._read_normal(id, data, loop_id)
+            self._read_normal(id, data)
 
     def read_df(self, df: polars.DataFrame):
         for column in df.columns:
@@ -79,99 +60,57 @@ class PolarReader:
 
     def to_survey(self, exclude_null: bool = True) -> Survey:
         def _from_normal(id: str, values: list):
-            return Question(series=polars.Series(id, values))
-
-        def _from_normal_loop(id: str, values: dict):
-            questions = []
-            for index, loop_id in enumerate(values.keys(), 1):
-                question = Question(
-                    series=polars.Series(f"{id}{LOOP}{index}", values[loop_id])
-                )
-                question.loop_id = loop_id
-                questions.append(question)
-            return questions
+            return Variable(series=polars.Series(id, values))
 
         def _from_multi(id: str, values: list):
-            return Question(
+            return Variable(
                 series=polars.Series(
                     id, [PolarReader._process_list(list(d)) for d in zip(*values)]
                 )
             )
 
-        def _from_multi_loop(id: str, values: dict):
-            questions = []
-            for index, loop_id in enumerate(values.keys(), 1):
-                question = Question(
-                    series=polars.Series(
-                        f"{id}{LOOP}{index}",
-                        [
-                            PolarReader._process_list(list(d))
-                            for d in zip(*values[loop_id])
-                        ],
-                    )
-                )
-                question.loop_id = loop_id
-                questions.append(question)
-            return questions
-
         def _from_multi_compact(id: str, values: list):
-            return Question(series=polars.Series(id, values))
-
-        def _from_multi_compact_loop(id: str, values: dict):
-            questions = []
-            for index, loop_id in enumerate(values.keys(), 1):
-                question = Question(
-                    series=polars.Series(f"{id}{LOOP}{index}", values[loop_id])
-                )
-                question.loop_id = loop_id
-                questions.append(question)
-            return questions
+            return Variable(series=polars.Series(id, values))
 
         functions = {
             "normal": _from_normal,
-            "normal_loop": _from_normal_loop,
             "multi": _from_multi,
-            "multi_loop": _from_multi_loop,
             "multi_compact": _from_multi_compact,
-            "multi_compact_loop": _from_multi_compact_loop,
         }
 
-        questions = []
+        variables = []
         for id, values in self.data.items():
             type_ = self.type_map[id]
             result = functions[type_](id, values)
-            if isinstance(result, list):
-                questions.extend(result)
-            else:
-                questions.append(result)
+            variables.append(result)
 
-        excluded_questions = []
-        for question in questions:
-            if question.series.dtype == polars.Null:
+        excluded_variables = []
+        for variable in variables:
+            if variable.series.dtype == polars.Null:
                 if exclude_null:
                     warnings.warn(
-                        f"Question {question.id} with no responses will be excluded"
+                        f"Variable {variable.id} with no responses will be excluded"
                     )
-                    excluded_questions.append(question.id)
+                    excluded_variables.append(variable.id)
                 else:
-                    warnings.warn(f"Read Null Question {question.id}")
+                    warnings.warn(f"Read Null Variable {variable.id}")
 
-            if question.series.dtype == polars.List and all(
-                [d == [] for d in question.series.to_list()]
+            if variable.series.dtype == polars.List and all(
+                [d == [] for d in variable.series.to_list()]
             ):
                 if exclude_null:
                     warnings.warn(
-                        f"MULTISELECT Question {question.id} with no responses will be excluded"
+                        f"MULTISELECT Variable {variable.id} with no responses will be excluded"
                     )
-                    excluded_questions.append(question.id)
+                    excluded_variables.append(variable.id)
                 else:
-                    warnings.warn(f"Read Empty Question {question.id}")
+                    warnings.warn(f"Read Empty Variable {variable.id}")
 
         return Survey(
-            questions=[
-                question
-                for question in questions
-                if question.id not in excluded_questions
+            variables=[
+                variable
+                for variable in variables
+                if variable.id not in excluded_variables
             ]
         )
 
@@ -180,7 +119,7 @@ def read_polars(
     raw_df: polars.DataFrame,
     compact_ids: list[str] | None = None,
     compact_separator: str = ";",
-    name_pattern: str = "id(.loop)?(_multi)?",
+    name_pattern: str = "id(_multi)?",
     exclude_null: bool = True,
 ) -> Survey:
     """
@@ -191,11 +130,11 @@ def read_polars(
     Args:
         raw_df (polars.DataFrame): Input data.
         compact_ids (list[str] | None):
-            IDs of questions using compact multi-select encoding.
+            IDs of variables using compact multi-select encoding.
         compact_separator (str):
             Separator for compact multi-select values.
         name_pattern (str):
-            Pattern for parsing column names into id/loop/multi components.
+            Pattern for parsing column names into id/multi components.
         exclude_null (bool):
             Default True, exclude Null columns or Empty List columns
 
