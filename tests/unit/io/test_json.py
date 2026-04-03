@@ -5,33 +5,30 @@ import polars as pl
 import pytest
 
 from survy.io.json import read_json, to_json
-from survy.survey.question import Question
+from survy.survey.variable import Variable
 from survy.survey.survey import Survey
 
 
 def make_sample_json(path: Path):
     data = {
-        "questions": [
+        "variables": [
             {
                 "id": "Q1",
                 "data": ["A", "B", "C", "A"],
-                "label": "Question 1",
-                "option_indices": {"A": 1, "B": 2, "C": 3},
-                "loop_id": "",
+                "label": "Variable 1",
+                "value_indices": {"A": 1, "B": 2, "C": 3},
             },
             {
                 "id": "Q2",
                 "data": [4, 5, 6],
-                "label": "Question 2",
-                "option_indices": {},
-                "loop_id": "loopA",
+                "label": "Variable 2",
+                "value_indices": {},
             },
             {
                 "id": "Q3",
                 "data": [["X", "Y", "Z"], ["X", "Z"], ["X"], ["Y", "Z"]],
-                "label": "Question 1",
-                "option_indices": {"X": 1, "Y": 2, "Z": 3},
-                "loop_id": "",
+                "label": "Variable 1",
+                "value_indices": {"X": 1, "Y": 2, "Z": 3},
             },
         ]
     }
@@ -47,15 +44,14 @@ def test_read_json_success(tmp_path: Path):
     survey = read_json(file_path)
 
     assert isinstance(survey, Survey)
-    assert len(survey.questions) == 3
+    assert len(survey.variables) == 3
 
     for index, id in enumerate(["Q1", "Q2", "Q3"]):
         q = survey[id]
-        assert isinstance(q, Question)
+        assert isinstance(q, Variable)
         assert isinstance(q.label, str)
-        assert q.option_indices == data["questions"][index]["option_indices"]
-        assert q.loop_id == data["questions"][index]["loop_id"]
-        assert q.series.to_list() == data["questions"][index]["data"]
+        assert q.value_indices == data["variables"][index]["value_indices"]
+        assert q.series.to_list() == data["variables"][index]["data"]
 
 
 def test_read_json_missing_file():
@@ -71,7 +67,7 @@ def test_read_json_invalid_json(tmp_path: Path):
         read_json(file_path)
 
 
-def test_read_json_missing_questions_key(tmp_path: Path):
+def test_read_json_missing_variables_key(tmp_path: Path):
     file_path = tmp_path / "bad.json"
     file_path.write_text(json.dumps({"wrong_key": []}))
 
@@ -80,21 +76,18 @@ def test_read_json_missing_questions_key(tmp_path: Path):
 
 
 def make_sample_survey():
-    q1 = Question(series=pl.Series("Q1", ["A", "B", "A"]))
-    q1.label = "Question 1"
-    q1.option_indices = {"A": 1, "B": 2}
-    q1.loop_id = ""
+    q1 = Variable(series=pl.Series("Q1", ["A", "B", "A"]))
+    q1.label = "Variable 1"
+    q1.value_indices = {"A": 1, "B": 2}
 
-    q2 = Question(series=pl.Series("Q2", [4, 5, 6]))
-    q2.label = "Question 2"
-    q2.loop_id = "loopA"
+    q2 = Variable(series=pl.Series("Q2", [4, 5, 6]))
+    q2.label = "Variable 2"
 
-    q3 = Question(series=pl.Series("Q3", [["X"], ["X", "Y"], ["Y"]]))
-    q3.label = "Question 3"
-    q3.option_indices = {"X": 1, "Y": 2}
-    q3.loop_id = "loopA"
+    q3 = Variable(series=pl.Series("Q3", [["X"], ["X", "Y"], ["Y"]]))
+    q3.label = "Variable 3"
+    q3.value_indices = {"X": 1, "Y": 2}
 
-    return Survey(questions=[q1, q2, q3])
+    return Survey(variables=[q1, q2, q3])
 
 
 def test_to_json_success(tmp_path: Path):
@@ -108,8 +101,8 @@ def test_to_json_success(tmp_path: Path):
     with open(output_file) as f:
         data = json.load(f)
 
-    assert "questions" in data
-    assert len(data["questions"]) == 3
+    assert "variables" in data
+    assert len(data["variables"]) == 3
 
 
 def test_to_json_path_as_str(tmp_path: Path):

@@ -3,7 +3,7 @@ import polars
 
 from survy.errors import FileTypeError
 from survy.io.polars import read_polars
-from survy.survey._utils import QuestionType
+from survy.survey._utils import VarType
 from survy.survey.survey import Survey
 
 
@@ -11,7 +11,7 @@ def read_csv(
     path: str | Path,
     compact_ids: list[str] | None = None,
     compact_separator: str = ";",
-    name_pattern: str = "id(.loop)?(_multi)?",
+    name_pattern: str = "id(_multi)?",
 ) -> Survey:
     """
     Read a CSV file and return a Survey object.
@@ -22,7 +22,7 @@ def read_csv(
         path (str | Path):
             Path to the CSV file.
         compact_ids (list[str] | None):
-            IDs of questions using compact multi-select encoding.
+            IDs of variables using compact multi-select encoding.
         compact_separator (str):
             Separator for compact multi-select values.
         name_pattern (str):
@@ -62,7 +62,7 @@ def to_csv(
 
     This function writes three CSV files:
     - `{name}_data.csv`: Survey response data.
-    - `{name}_questions_info.csv`: Metadata about questions.
+    - `{name}_variables_info.csv`: Metadata about variables.
     - `{name}_options_info.csv`: Mapping of option text to indices.
 
     Args:
@@ -84,19 +84,19 @@ def to_csv(
         - In compact mode, multiselect responses (list columns) are joined into
           strings using the specified separator.
         - In non-compact mode, multiselect responses are exported as boolean columns
-        - The `{name}_questions_info.csv` file contains question IDs, types,
+        - The `{name}_variables_info.csv` file contains variable IDs, types,
           and labels.
         - The `{name}_options_info.csv` file contains option text and their
-          corresponding indices for each question.
+          corresponding indices for each variable.
     """
     if not isinstance(path, Path):
         path = Path(path)
 
     if compact:
         multiselect_ids = [
-            question.id
-            for question in survey.questions
-            if question.qtype == QuestionType.MULTISELECT
+            variable.id
+            for variable in survey.variables
+            if variable.vtype == VarType.MULTISELECT
         ]
 
         survey.get_df(select_dtype="text", multiselect_dtype="compact").with_columns(
@@ -104,7 +104,7 @@ def to_csv(
                 polars.col(i).list.join(compact_separator).alias(i)
                 for i in multiselect_ids
             ]
-        ).select([question.id for question in survey.questions]).write_csv(
+        ).select([variable.id for variable in survey.variables]).write_csv(
             path / f"{name}_data.csv"
         )
     else:
@@ -114,15 +114,15 @@ def to_csv(
 
     polars.DataFrame(
         [
-            {"id": question.id, "qtype": question.qtype, "label": question.label}
-            for question in survey.questions
+            {"id": variable.id, "vtype": variable.vtype, "label": variable.label}
+            for variable in survey.variables
         ]
-    ).write_csv(path / f"{name}_questions_info.csv")
+    ).write_csv(path / f"{name}_variables_info.csv")
 
     polars.DataFrame(
         [
-            {"id": question.id, "text": op, "index": index}
-            for question in survey.questions
-            for op, index in question.option_indices.items()
+            {"id": variable.id, "text": op, "index": index}
+            for variable in survey.variables
+            for op, index in variable.value_indices.items()
         ]
     ).write_csv(path / f"{name}_options_info.csv")

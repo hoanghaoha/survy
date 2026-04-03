@@ -3,8 +3,8 @@ import warnings
 
 import polars
 
-from survy.errors import DataStructureError, QuestionTypeError
-from survy.survey._utils import QuestionType
+from survy.errors import DataStructureError, VarTypeError
+from survy.survey._utils import VarType
 from survy.survey.strategies.base_strategy import BaseStrategy
 from survy.survey.strategies.multiselect_strategy import MultiSelectStrategy
 from survy.survey.strategies.number_strategy import NumberStrategy
@@ -12,46 +12,44 @@ from survy.survey.strategies.select_strategy import SelectStrategy
 from survy.utils.functions import extract_mapping
 
 
-class Question:
+class Variable:
     """
-    Represents a single survey question backed by a Polars Series.
+    Represents a single survey variable backed by a Polars Series.
 
     Attributes:
-        series (polars.Series): Raw data for the question.
-        loop_id (str): Optional loop identifier for repeated questions.
+        series (polars.Series): Raw data for the variable.
     """
 
     def __init__(self, series: polars.Series):
         """
-        Initialize a Question instance.
+        Initialize a Variable instance.
 
         Args:
-            series (polars.Series): The data column representing the question.
+            series (polars.Series): The data column representing the variable.
 
         Raises:
-            AssertionError: If question type cannot be determined.
+            AssertionError: If variable type cannot be determined.
         """
         self.series = series
-        self._option_indices: dict[str, int] = {}
+        self._value_indices: dict[str, int] = {}
         self._label: str = ""
-        self.loop_id: str = ""
 
-        assert self.qtype
+        assert self.vtype
 
     @property
     def id(self) -> str:
         """
-        Returns the question identifier (column name).
+        Returns the variable identifier (column name).
 
         Returns:
-            str: Question ID.
+            str: Variable ID.
         """
         return self.series.name
 
     @property
     def label(self) -> str:
         """
-        Returns the display label of the question.
+        Returns the display label of the variable.
 
         - Uses custom label if set, otherwise defaults to column name.
         - Prepends loop_id if present.
@@ -61,18 +59,13 @@ class Question:
             str: Formatted label.
         """
         label = self._label if self._label else self.series.name
-        if self.loop_id:
-            label = f"[{self.loop_id}] " + label
 
-        if len(label) >= 250:
-            warnings.warn(f"{self.id} Len of label > 250 will be truncated")
-
-        return label[:249]
+        return label
 
     @label.setter
     def label(self, new_label: str):
         """
-        Set a custom label for the question.
+        Set a custom label for the variable.
 
         Args:
             new_label (str): New label.
@@ -80,11 +73,11 @@ class Question:
         self._label = new_label
 
     @property
-    def option_indices(self) -> dict[str, int]:
+    def value_indices(self) -> dict[str, int]:
         """
         Returns mapping of response values to numeric indices.
 
-        - For numeric questions, returns empty dict.
+        - For numeric variable, returns empty dict.
         - If not manually set, inferred from data.
 
         Returns:
@@ -94,33 +87,33 @@ class Question:
             return {}
 
         return (
-            self._option_indices
-            if self._option_indices
+            self._value_indices
+            if self._value_indices
             else extract_mapping(self.series.to_list())
         )
 
-    @option_indices.setter
-    def option_indices(self, new_option_indices):
+    @value_indices.setter
+    def value_indices(self, new_value_indices):
         """
-        Set custom option index mapping.
+        Set custom value index mapping.
 
         Ensures all existing values are covered.
 
         Args:
-            new_option_indices (dict[str, int]): Mapping of values to indices.
+            new_value_indices (dict[str, int]): Mapping of values to indices.
 
         Raises:
             DataStructureError: If any value is missing from mapping.
         """
         if self.series.dtype.is_numeric():
-            warnings.warn(
-                f"Number question {self.id} can not be updated option_indices"
-            )
+            warnings.warn(f"NUMBER {self.id} can not be updated value_indices")
         else:
             for v in extract_mapping(self.series.to_list()).keys():
-                if v not in new_option_indices.keys():
-                    raise DataStructureError(f"Value is not have option index: {v}")
-            self._option_indices = new_option_indices
+                if v not in new_value_indices.keys():
+                    raise DataStructureError(
+                        f"{self.id}: Value is not have option index: {v}"
+                    )
+            self._value_indices = new_value_indices
 
     @property
     def dtype(self) -> polars.DataType:
@@ -133,9 +126,9 @@ class Question:
         return self.series.dtype
 
     @property
-    def qtype(self) -> QuestionType:
+    def vtype(self) -> VarType:
         """
-        Infers the question type based on data type.
+        Infers the variable type based on data type.
 
         Rules:
             - List → MULTISELECT
@@ -144,10 +137,10 @@ class Question:
             - Otherwise, attempts cast to string → SELECT
 
         Returns:
-            QuestionType: Inferred question type.
+            VarType: Inferred variable type.
 
         Raises:
-            QuestionTypeError: If type cannot be determined.
+            VarTypeError: If type cannot be determined.
         """
         dtype = self.dtype
 
@@ -157,22 +150,22 @@ class Question:
                     self.series.name, ["" for _ in range(self.len)], dtype=polars.String
                 )
                 warnings.warn(f"{self.id} with empty list converted to SELECT")
-                return QuestionType.SELECT
-            return QuestionType.MULTISELECT
+                return VarType.SELECT
+            return VarType.MULTISELECT
 
         if dtype.is_numeric():
-            return QuestionType.NUMBER
+            return VarType.NUMBER
 
         if dtype == polars.String:
-            return QuestionType.SELECT
+            return VarType.SELECT
 
         try:
             self.series.cast(polars.String)
         except Exception as e:
-            raise QuestionTypeError from e
+            raise VarTypeError from e
 
         warnings.warn(f"{self.id} with dtype {self.series.dtype} converted to SELECT")
-        return QuestionType.SELECT
+        return VarType.SELECT
 
     @property
     def base(self) -> int:
@@ -197,49 +190,48 @@ class Question:
     @property
     def strategy(self) -> BaseStrategy:
         """
-        Returns the appropriate strategy instance for the question.
+        Returns the appropriate strategy instance for the variable.
 
-        Strategy is selected based on question type.
+        Strategy is selected based on var type.
 
         Returns:
             BaseStrategy: Strategy instance.
         """
         return {
-            QuestionType.SELECT: SelectStrategy,
-            QuestionType.MULTISELECT: MultiSelectStrategy,
-            QuestionType.NUMBER: NumberStrategy,
-        }[self.qtype](self.series, self.option_indices)
+            VarType.SELECT: SelectStrategy,
+            VarType.MULTISELECT: MultiSelectStrategy,
+            VarType.NUMBER: NumberStrategy,
+        }[self.vtype](self.series, self.value_indices)
 
     def to_dict(self) -> dict:
         """
-        Serializes the question into a dictionary.
+        Serializes the variable into a dictionary.
 
         Returns:
-            dict: Question representation.
+            dict: Variable representation.
         """
         return {
             "id": self.id,
             "data": self.series.to_list(),
             "label": self._label,
-            "option_indices": self.option_indices,
-            "qtype": self.qtype,
-            "loop_id": self.loop_id,
+            "value_indices": self.value_indices,
+            "vtype": self.vtype,
         }
 
     @property
-    def sub_bases(self) -> dict[str, int]:
+    def frequencies(self) -> dict[str, int]:
         """
-        Returns sub-base counts from the strategy.
+        Returns value counts from the strategy.
 
         Returns:
-            dict[str, int]: Sub-base values.
+            dict[str, int]: Value counts.
         """
-        return self.strategy.sub_bases
+        return self.strategy.frequencies
 
     @property
     def sps(self) -> str:
         """
-        Returns SPSS syntax representation of the question.
+        Returns SPSS syntax representation of the variable.
 
         Returns:
             str: SPSS syntax string.
@@ -250,7 +242,7 @@ class Question:
         self, dtype: Literal["number", "text", "compact"] = "text"
     ) -> polars.DataFrame:
         """
-        Returns a processed DataFrame representation of the question.
+        Returns a processed DataFrame representation of the variable.
 
         Args:
             dtype (Literal["number", "text", "compact"], optional):

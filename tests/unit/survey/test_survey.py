@@ -5,45 +5,45 @@ from unittest.mock import patch
 
 from survy.errors import DataStructureError
 from survy.survey.survey import Survey
-from survy.survey.question import Question
+from survy.survey.variable import Variable
 
 
 @pytest.fixture
-def select_question():
-    return Question(series=polars.Series("Q1", ["a", "b", "c", "a"]))
+def select_variable():
+    return Variable(series=polars.Series("Q1", ["a", "b", "c", "a"]))
 
 
 @pytest.fixture
-def multiselect_question():
-    return Question(
+def multiselect_variable():
+    return Variable(
         series=polars.Series("Q2", [["x", "y"], ["x", "z"], ["y", "z"], ["y"]])
     )
 
 
 @pytest.fixture
-def number_question():
-    return Question(series=polars.Series("Q3", [24, 22, 4, 209]))
+def number_variable():
+    return Variable(series=polars.Series("Q3", [24, 22, 4, 209]))
 
 
-def test_survey_get_question(select_question, multiselect_question, number_question):
-    survey = Survey(questions=[select_question, multiselect_question, number_question])
-    assert survey["Q1"] == select_question
-    assert survey["Q2"] == multiselect_question
-    assert survey["Q3"] == number_question
+def test_survey_get_variable(select_variable, multiselect_variable, number_variable):
+    survey = Survey(variables=[select_variable, multiselect_variable, number_variable])
+    assert survey["Q1"] == select_variable
+    assert survey["Q2"] == multiselect_variable
+    assert survey["Q3"] == number_variable
 
 
-def test_survey_get_question_error(
-    select_question, multiselect_question, number_question
+def test_survey_get_variable_error(
+    select_variable, multiselect_variable, number_variable
 ):
-    survey = Survey(questions=[select_question, multiselect_question, number_question])
+    survey = Survey(variables=[select_variable, multiselect_variable, number_variable])
     with pytest.raises(KeyError):
         assert survey["Q4"]
 
 
 def test_survey_get_df_text_compact(
-    select_question, multiselect_question, number_question
+    select_variable, multiselect_variable, number_variable
 ):
-    survey = Survey(questions=[select_question, multiselect_question, number_question])
+    survey = Survey(variables=[select_variable, multiselect_variable, number_variable])
 
     assert_frame_equal(
         survey.get_df(select_dtype="text", multiselect_dtype="compact"),
@@ -58,9 +58,9 @@ def test_survey_get_df_text_compact(
 
 
 def test_survey_get_df_number_compact(
-    select_question, multiselect_question, number_question
+    select_variable, multiselect_variable, number_variable
 ):
-    survey = Survey(questions=[select_question, multiselect_question, number_question])
+    survey = Survey(variables=[select_variable, multiselect_variable, number_variable])
 
     assert_frame_equal(
         survey.get_df(select_dtype="number", multiselect_dtype="compact"),
@@ -75,9 +75,9 @@ def test_survey_get_df_number_compact(
 
 
 def test_survey_get_df_text_text(
-    select_question, multiselect_question, number_question
+    select_variable, multiselect_variable, number_variable
 ):
-    survey = Survey(questions=[select_question, multiselect_question, number_question])
+    survey = Survey(variables=[select_variable, multiselect_variable, number_variable])
 
     assert_frame_equal(
         survey.get_df(select_dtype="text", multiselect_dtype="text"),
@@ -94,9 +94,9 @@ def test_survey_get_df_text_text(
 
 
 def test_survey_get_df_text_number(
-    select_question, multiselect_question, number_question
+    select_variable, multiselect_variable, number_variable
 ):
-    survey = Survey(questions=[select_question, multiselect_question, number_question])
+    survey = Survey(variables=[select_variable, multiselect_variable, number_variable])
 
     assert_frame_equal(
         survey.get_df(select_dtype="text", multiselect_dtype="number"),
@@ -119,26 +119,26 @@ def test_survey_get_df_text_number(
     )
 
 
-def test_survey_get_sps(select_question, multiselect_question, number_question):
-    survey = Survey(questions=[select_question, multiselect_question, number_question])
+def test_survey_get_sps(select_variable, multiselect_variable, number_variable):
+    survey = Survey(variables=[select_variable, multiselect_variable, number_variable])
 
     assert isinstance(survey.sps, str)
 
 
-def test_survey_update(select_question, multiselect_question, number_question):
-    survey = Survey(questions=[select_question, multiselect_question, number_question])
+def test_survey_update(select_variable, multiselect_variable, number_variable):
+    survey = Survey(variables=[select_variable, multiselect_variable, number_variable])
 
     survey.update(
         [
             {
                 "id": "Q1",
                 "label": "Test Select",
-                "option_indices": {"a": 2, "b": 1, "c": 3},
+                "value_indices": {"a": 2, "b": 1, "c": 3},
             },
             {
                 "id": "Q2",
                 "label": "Test MultiSelect",
-                "option_indices": {"x": 2, "y": 1, "z": 3},
+                "value_indices": {"x": 2, "y": 1, "z": 3},
             },
             {
                 "id": "Q3",
@@ -148,16 +148,16 @@ def test_survey_update(select_question, multiselect_question, number_question):
     )
 
     assert survey["Q1"].label == "Test Select"
-    assert survey["Q1"].option_indices == {"a": 2, "b": 1, "c": 3}
+    assert survey["Q1"].value_indices == {"a": 2, "b": 1, "c": 3}
 
     assert survey["Q2"].label == "Test MultiSelect"
-    assert survey["Q2"].option_indices == {"y": 1, "x": 2, "z": 3}
+    assert survey["Q2"].value_indices == {"y": 1, "x": 2, "z": 3}
 
     assert survey["Q3"].label == "Test Number"
 
 
-def test_survey_update_warnings(select_question, multiselect_question, number_question):
-    survey = Survey(questions=[select_question, multiselect_question, number_question])
+def test_survey_update_warnings(select_variable, multiselect_variable, number_variable):
+    survey = Survey(variables=[select_variable, multiselect_variable, number_variable])
 
     with pytest.warns(UserWarning):
         survey.update(
@@ -165,17 +165,17 @@ def test_survey_update_warnings(select_question, multiselect_question, number_qu
                 {
                     "id": "Q4",
                     "label": "Test Warnings",
-                    "option_indices": {"a": 2, "b": 1, "c": 3},
+                    "value_indices": {"a": 2, "b": 1, "c": 3},
                 },
             ]
         )
 
 
-def test_survey_update_error(select_question, multiselect_question, number_question):
-    survey = Survey(questions=[select_question, multiselect_question, number_question])
+def test_survey_update_error(select_variable, multiselect_variable, number_variable):
+    survey = Survey(variables=[select_variable, multiselect_variable, number_variable])
 
     with pytest.raises(DataStructureError):
-        survey.update([{"id": "Q1", "option_indices": {"a": 1}}])
+        survey.update([{"id": "Q1", "value_indices": {"a": 1}}])
 
 
 @patch("survy.io.json.to_json")
@@ -200,4 +200,3 @@ def test_to_csv(mock_to_csv):
     survey.to_csv("path", name="test", compact=True)
 
     mock_to_csv.assert_called_once()
-

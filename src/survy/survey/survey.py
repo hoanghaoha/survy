@@ -3,45 +3,45 @@ from typing import Any, Literal
 import warnings
 import polars
 
-from survy.survey.question import Question, QuestionType
+from survy.survey.variable import Variable, VarType
 from survy.utils.spss import ctables
 
 
 class Survey:
-    """Container for a collection of survey questions.
+    """Container for a collection of survey variables.
 
-    This class provides utilities to access questions, transform survey data
+    This class provides utilities to access variables, transform survey data
     into tabular format, export to various file formats, and manage metadata.
 
     Args:
-        questions (list[Question]): List of Question objects in the survey.
+        variables (list[Variable]): List of Variable objects in the survey.
 
     Examples:
-        >>> survey = Survey(questions=[q1, q2])
+        >>> survey = Survey(variables=[q1, q2])
         >>> df = survey.get_df()
         >>> print(df.shape)
     """
 
-    def __init__(self, questions: list[Question]):
-        self.questions = questions
+    def __init__(self, variables: list[Variable]):
+        self.variables = variables
 
-    def __getitem__(self, question_id: str):
-        """Retrieve a question by its ID.
+    def __getitem__(self, variable_id: str):
+        """Retrieve a Variable by its ID.
 
         Args:
-            question_id (str): The ID of the question to retrieve.
+            variable_id (str): The ID of the variable to retrieve.
 
         Returns:
-            Question: The matching Question object.
+            Variable: The matching Variable object.
 
         Raises:
-            KeyError: If the question ID does not exist.
+            KeyError: If the variable ID does not exist.
 
         Examples:
-            >>> question = survey["Q1"]
-            >>> print(question.label)
+            >>> variable = survey["Q1"]
+            >>> print(variable.label)
         """
-        return {question.id: question for question in self.questions}[question_id]
+        return {variable.id: variable for variable in self.variables}[variable_id]
 
     def get_df(
         self,
@@ -50,20 +50,20 @@ class Survey:
     ) -> polars.DataFrame:
         """Convert the survey into a Polars DataFrame.
 
-        Each question is converted into a column (or columns) and concatenated
+        Each variable is converted into a column (or columns) and concatenated
         horizontally into a single DataFrame.
 
         Args:
             select_dtype (Literal["number", "text"], optional):
-                Data type for single-select questions. Defaults to "text".
+                Data type for single-select variables. Defaults to "text".
             multiselect_dtype (Literal["number", "text", "compact"], optional):
-                Data type for multi-select questions. Defaults to "compact".
+                Data type for multi-select variables. Defaults to "compact".
 
         Returns:
             polars.DataFrame: A DataFrame representing the survey responses.
 
         Notes:
-            - Multi-select questions may return multiple columns depending on
+            - Multi-select variables may return multiple columns depending on
               the selected dtype.
             - The final DataFrame is constructed using horizontal concatenation.
 
@@ -73,13 +73,13 @@ class Survey:
             >>> df = survey.get_df(multiselect_dtype="compact")
         """
         dfs = []
-        for question in self.questions:
-            if question.qtype == QuestionType.MULTISELECT:
-                dfs.append(question.get_df(multiselect_dtype))
-            elif question.qtype == QuestionType.SELECT:
-                dfs.append(question.get_df(select_dtype))
+        for variable in self.variables:
+            if variable.vtype == VarType.MULTISELECT:
+                dfs.append(variable.get_df(multiselect_dtype))
+            elif variable.vtype == VarType.SELECT:
+                dfs.append(variable.get_df(select_dtype))
             else:
-                dfs.append(question.get_df())
+                dfs.append(variable.get_df())
         return polars.concat(dfs, how="horizontal")
 
     @property
@@ -87,11 +87,11 @@ class Survey:
         """Generate SPSS syntax for the survey.
 
         Returns:
-            str: A string containing SPSS syntax commands for all questions.
+            str: A string containing SPSS syntax commands for all variables.
 
         Notes:
-            - Each question contributes its own SPSS syntax.
-            - Question IDs are included as comments for readability.
+            - Each variable contributes its own SPSS syntax.
+            - variable IDs are included as comments for readability.
 
         Examples:
             >>> syntax = survey.sps
@@ -99,25 +99,25 @@ class Survey:
         """
         commands = []
 
-        for question in self.questions:
-            commands.append(f"**{question.id}\n")
-            commands.append(question.sps)
+        for variable in self.variables:
+            commands.append(f"**{variable.id}\n")
+            commands.append(variable.sps)
 
         commands.append(
-            ctables({question.id: question.qtype for question in self.questions})
+            ctables({variable.id: variable.vtype for variable in self.variables})
         )
 
         return "\n".join(commands)
 
     def update(self, metadata: list[dict[str, Any]]):
-        """Update question metadata from a list of dictionaries.
+        """Update variable metadata from a list of dictionaries.
 
         Args:
             metadata (list[dict[str, Any]]): List of metadata dictionaries.
                 Each dictionary should include:
-                - "id": Question ID
-                - "label" (optional): New label for the question
-                - "option_indices" (optional): Mapping of options to indices
+                - "id": variable ID
+                - "label" (optional): New label for the variable
+                - "value_indices" (optional): Mapping of options to indices
 
         Returns:
             None
@@ -127,27 +127,27 @@ class Survey:
 
         Notes:
             - Missing optional fields default to empty values.
-            - Unknown question IDs trigger a warning and are skipped.
-            - NUMBER question will not be updated for option_indices
+            - Unknown variable IDs trigger a warning and are skipped.
+            - NUMBER variable will not be updated for value_indices
 
         Examples:
             >>> metadata = [
             ...     {"id": "Q1", "label": "Updated label"},
-            ...     {"id": "Q2", "option_indices": {"Yes": 1, "No": 0}},
+            ...     {"id": "Q2", "value_indices": {"Yes": 1, "No": 0}},
             ... ]
             >>> survey.update(metadata)
         """
         for info in metadata:
             id = info["id"]
 
-            if id not in [q.id for q in self.questions]:
+            if id not in [q.id for q in self.variables]:
                 warnings.warn(f"Id is not in survey: {id}")
                 continue
 
-            question = self[info["id"]]
-            question.label = info.get("label", "")
-            if not question.series.dtype.is_numeric():
-                question.option_indices = info.get("option_indices", {})
+            variable = self[info["id"]]
+            variable.label = info.get("label", "")
+            if not variable.series.dtype.is_numeric():
+                variable.value_indices = info.get("value_indices", {})
 
     def to_json(
         self, path: str | Path, name: str = "survey", encoding: str = "utf-8"
@@ -206,7 +206,7 @@ class Survey:
 
         This is a wrapper around ``survy.io.csv.to_csv`` and writes:
         - Survey data
-        - Question metadata
+        - Variable metadata
         - Option mappings
 
         Args:

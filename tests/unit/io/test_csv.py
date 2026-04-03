@@ -4,7 +4,7 @@ from pathlib import Path
 
 from survy.io.csv import read_csv, to_csv
 from survy.errors import FileTypeError
-from survy.survey.question import Question
+from survy.survey.variable import Variable
 from survy.survey.survey import Survey
 
 
@@ -24,21 +24,18 @@ def make_sample_csv(path: Path):
 
 
 def make_sample_survey():
-    q1 = Question(series=pl.Series("Q1", ["A", "B", "A"]))
-    q1.label = "Question 1"
-    q1.option_indices = {"A": 1, "B": 2}
-    q1.loop_id = ""
+    q1 = Variable(series=pl.Series("Q1", ["A", "B", "A"]))
+    q1.label = "Variable 1"
+    q1.value_indices = {"A": 1, "B": 2}
 
-    q2 = Question(series=pl.Series("Q2", [1, 2, 3]))
-    q2.label = "Question 2"
-    q2.loop_id = ""
+    q2 = Variable(series=pl.Series("Q2", [1, 2, 3]))
+    q2.label = "Variable 2"
 
-    q3 = Question(series=pl.Series("Q3", [["X", "Y"], ["X"], ["Y"]]))
-    q3.label = "Question 3"
-    q3.option_indices = {"X": 1, "Y": 2}
-    q3.loop_id = ""
+    q3 = Variable(series=pl.Series("Q3", [["X", "Y"], ["X"], ["Y"]]))
+    q3.label = "Variable 3"
+    q3.value_indices = {"X": 1, "Y": 2}
 
-    return Survey(questions=[q1, q2, q3])
+    return Survey(variables=[q1, q2, q3])
 
 
 def test_read_csv_success(tmp_path: Path):
@@ -47,7 +44,7 @@ def test_read_csv_success(tmp_path: Path):
     survey = read_csv(file_path, compact_ids=["Q3"])
 
     assert isinstance(survey, Survey)
-    assert len(survey.questions) == len(df.columns)
+    assert len(survey.variables) == len(df.columns)
 
     for col in df.columns:
         q = survey[col]
@@ -81,7 +78,7 @@ def test_to_csv_success_compact(tmp_path: Path):
     to_csv(survey, tmp_path, name="out", compact=True)
 
     assert (tmp_path / "out_data.csv").exists()
-    assert (tmp_path / "out_questions_info.csv").exists()
+    assert (tmp_path / "out_variables_info.csv").exists()
     assert (tmp_path / "out_options_info.csv").exists()
 
 

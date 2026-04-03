@@ -1,29 +1,29 @@
 from typing import Literal
 
-from survy.survey.question import QuestionType
+from survy.survey.variable import VarType
 from survy.separator import MULTISELECT
 
 
 def variable_labels(
     qtype: str, id: str, label: str, option_indices: dict[str, int] = {}
 ) -> str:
-    """Generate SPSS VARIABLE LABELS syntax for a question.
+    """Generate SPSS VARIABLE LABELS syntax for a variable.
 
     Args:
         qtype (str):
-            The question type (e.g., SELECT, MULTISELECT, NUMBER).
+            The variable type (e.g., SELECT, MULTISELECT, NUMBER).
         id (str):
             The base variable name.
         label (str):
             The descriptive label for the variable.
         option_indices (dict[str, int], optional):
             Mapping of option labels to numeric indices. Required for
-            multi-select questions.
+            multi-select variables.
 
     Returns:
         str:
             SPSS syntax string for variable labels. Returns an empty string
-            for multi-select questions if no option indices are provided.
+            for multi-select variables if no option indices are provided.
 
     Behavior:
         - SELECT and NUMBER: Generates a single VARIABLE LABELS statement.
@@ -37,9 +37,9 @@ def variable_labels(
         "VARIABLE LABELS Q2_1 '[Sports] Hobbies'."
     """
     match qtype:
-        case QuestionType.SELECT | QuestionType.NUMBER:
+        case VarType.SELECT | VarType.NUMBER:
             return f"VARIABLE LABELS {id} '{label}'."
-        case QuestionType.MULTISELECT:
+        case VarType.MULTISELECT:
             if not option_indices:
                 return ""
 
@@ -50,7 +50,7 @@ def variable_labels(
                 ]
             )
         case _:
-            raise KeyError("Can not identify question type")
+            raise KeyError("Can not identify variable type")
 
 
 def variable_level(
@@ -59,17 +59,17 @@ def variable_level(
     level: Literal["NOMINAL", "ORDINAL", "SCALE"],
     option_indices: dict[str, int] = {},
 ) -> str:
-    """Generate SPSS VARIABLE LEVEL syntax for a question.
+    """Generate SPSS VARIABLE LEVEL syntax for a variable.
 
     Args:
         qtype (str):
-            The question type.
+            The variable type.
         id (str):
             The base variable name.
         level (Literal["NOMINAL", "ORDINAL", "SCALE"]):
             Measurement level in SPSS.
         option_indices (dict[str, int], optional):
-            Mapping of option labels to indices for multi-select questions.
+            Mapping of option labels to indices for multi-select variables.
 
     Returns:
         str:
@@ -87,7 +87,7 @@ def variable_level(
         "VARIABLE LEVEL Q2_1 (NOMINAL)."
     """
     match qtype:
-        case QuestionType.MULTISELECT:
+        case VarType.MULTISELECT:
             if not option_indices:
                 return ""
 
@@ -102,11 +102,11 @@ def variable_level(
 
 
 def value_labels(qtype: str, id: str, option_indices: dict[str, int]) -> str:
-    """Generate SPSS VALUE LABELS syntax for a question.
+    """Generate SPSS VALUE LABELS syntax for a variable.
 
     Args:
         qtype (str):
-            The question type.
+            The variable type.
         id (str):
             The base variable name.
         option_indices (dict[str, int]):
@@ -132,7 +132,7 @@ def value_labels(qtype: str, id: str, option_indices: dict[str, int]) -> str:
         return ""
 
     match qtype:
-        case QuestionType.MULTISELECT:
+        case VarType.MULTISELECT:
             return "\n".join(
                 [
                     f"VALUE LABELS {id}{MULTISELECT}{i} 1 '{op}'."
@@ -183,12 +183,12 @@ VARIABLES={" ".join([f"{id}{MULTISELECT}{i}" for _, i in option_indices.items()]
 /DISPLAY NAME=[${id}]."""
 
 
-def ctables(id_type_map: dict[str, QuestionType]) -> str:
+def ctables(id_type_map: dict[str, VarType]) -> str:
     """Generate SPSS CTABLES syntax for a set of survey variables.
 
     Args:
-        id_type_map (dict[str, QuestionType]):
-            Mapping of variable IDs to their question types.
+        id_type_map (dict[str, VarType]):
+            Mapping of variable IDs to their variable types.
 
     Returns:
         str:
@@ -205,7 +205,7 @@ def ctables(id_type_map: dict[str, QuestionType]) -> str:
         - Includes comparison tests for means and proportions.
 
     Examples:
-        >>> ctables({"Q1": QuestionType.SELECT, "Q2": QuestionType.MULTISELECT})
+        >>> ctables({"Q1": VarType.SELECT, "Q2": VarType.MULTISELECT})
         "CTABLES
         /TABLE
         Q1 [C][COUNT F40.0, TOTALS[COUNT F40.0] +
@@ -221,11 +221,11 @@ def ctables(id_type_map: dict[str, QuestionType]) -> str:
     """
     calculations = []
     for id, qtype in id_type_map.items():
-        if qtype == QuestionType.SELECT:
+        if qtype == VarType.SELECT:
             calculations.append(f"{id} [C][COUNT F40.0, TOTALS[COUNT F40.0]] +")
-        elif qtype == QuestionType.MULTISELECT:
+        elif qtype == VarType.MULTISELECT:
             calculations.append(f"${id} [C][COUNT F40.0, TOTALS[COUNT F40.0]] +")
-        elif qtype == QuestionType.NUMBER:
+        elif qtype == VarType.NUMBER:
             calculations.append(f"{id} [MEAN COMMA40.2] +")
     return f"""CTABLES
 /TABLE

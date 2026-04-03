@@ -18,5 +18,5 @@ class DataStructureError(BaseError):
     pass
 
 
-class QuestionTypeError(BaseError):
+class VarTypeError(BaseError):
     pass

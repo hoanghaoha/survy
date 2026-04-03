@@ -1,26 +1,26 @@
 from typing import Literal
 import polars
-from survy.survey._utils import QuestionType
+from survy.survey._utils import VarType
 from survy.survey.strategies.base_strategy import BaseStrategy
 from survy.utils.spss import value_labels, variable_labels, variable_level
 
 
 class SelectStrategy(BaseStrategy):
     """
-    Strategy for handling single-select (categorical) survey questions.
+    Strategy for handling single-select (categorical) survey variables.
     """
 
-    def __init__(self, series: polars.Series, option_indices: dict[str, int]) -> None:
+    def __init__(self, series: polars.Series, value_indices: dict[str, int]) -> None:
         """
         Initialize SelectStrategy.
 
         Args:
             series (polars.Series): Raw response data.
-            option_indices (dict[str, int]): Mapping from category labels
+            value_indices (dict[str, int]): Mapping from category labels
                 to numeric codes.
         """
         self.series = series
-        self.option_indices = option_indices
+        self.value_indices = value_indices
 
     def get_df(self, **kwargs) -> polars.DataFrame:
         """
@@ -39,13 +39,13 @@ class SelectStrategy(BaseStrategy):
 
         if dtype == "number":
             return self.series.replace_strict(
-                self.option_indices, default=None
+                self.value_indices, default=None
             ).to_frame()
 
         return self.series.to_frame()
 
     @property
-    def sub_bases(self) -> dict[str, int]:
+    def frequencies(self) -> dict[str, int]:
         """
         Compute frequency counts for each category.
 
@@ -70,7 +70,7 @@ class SelectStrategy(BaseStrategy):
 
     def get_sps(self, label: str) -> str:
         """
-        Generate SPSS syntax for a single-select question.
+        Generate SPSS syntax for a single-select variable.
 
         This includes:
         - Variable labels
@@ -78,7 +78,7 @@ class SelectStrategy(BaseStrategy):
         - Variable measurement level (nominal)
 
         Args:
-            label (str): Question label.
+            label (str): Variable label.
 
         Returns:
             str: Combined SPSS syntax string.
@@ -92,12 +92,10 @@ class SelectStrategy(BaseStrategy):
         assert len(label) < 250
         label = label.replace("'", "").replace('"', "")
 
-        var_label_str = variable_labels(
-            QuestionType.SELECT, id, label, self.option_indices
-        )
-        value_label_str = value_labels(QuestionType.SELECT, id, self.option_indices)
+        var_label_str = variable_labels(VarType.SELECT, id, label, self.value_indices)
+        value_label_str = value_labels(VarType.SELECT, id, self.value_indices)
         var_level_str = variable_level(
-            QuestionType.SELECT, id, "NOMINAL", self.option_indices
+            VarType.SELECT, id, "NOMINAL", self.value_indices
         )
 
         return "\n".join([var_label_str, value_label_str, var_level_str])

@@ -3,9 +3,9 @@ import polars
 from polars.testing import assert_frame_equal
 import warnings
 
-from survy.survey.question import Question
-from survy.errors import DataStructureError, QuestionTypeError
-from survy.survey._utils import QuestionType
+from survy.survey.variable import Variable
+from survy.errors import DataStructureError, VarTypeError
+from survy.survey._utils import VarType
 
 
 # -------------------------
@@ -13,63 +13,63 @@ from survy.survey._utils import QuestionType
 # -------------------------
 
 
-def test_question_id():
+def test_variable_id():
     s = polars.Series("Q1", ["A", "B"])
-    q = Question(s)
+    q = Variable(s)
 
     assert q.id == "Q1"
 
 
 def test_len_property():
     s = polars.Series("Q1", ["A", "B", None])
-    q = Question(s)
+    q = Variable(s)
 
     assert q.len == 3
 
 
 def test_base_counts_non_empty():
     s = polars.Series("Q1", ["A", "", None, "B"])
-    q = Question(s)
+    q = Variable(s)
 
     assert q.base == 2
 
 
 # -------------------------
-# qtype inference
+# vtype inference
 # -------------------------
 
 
-def test_qtype_select():
+def test_vtype_select():
     s = polars.Series("Q1", ["A", "B"])
-    q = Question(s)
+    q = Variable(s)
 
-    assert q.qtype == QuestionType.SELECT
+    assert q.vtype == VarType.SELECT
 
 
-def test_qtype_number():
+def test_vtype_number():
     s = polars.Series("Q1", [1, 2, 3])
-    q = Question(s)
+    q = Variable(s)
 
-    assert q.qtype == QuestionType.NUMBER
+    assert q.vtype == VarType.NUMBER
 
 
-def test_qtype_multiselect():
+def test_vtype_multiselect():
     s = polars.Series("Q1", [["A", "B"], ["B"]])
-    q = Question(s)
+    q = Variable(s)
 
-    assert q.qtype == QuestionType.MULTISELECT
+    assert q.vtype == VarType.MULTISELECT
 
 
-def test_qtype_fallback_to_select_with_warning():
+def test_vtype_fallback_to_select_with_warning():
     s = polars.Series("Q1", [True, False])
 
     with warnings.catch_warnings(record=True) as w:
-        q = Question(s)
-        assert q.qtype == QuestionType.SELECT
+        q = Variable(s)
+        assert q.vtype == VarType.SELECT
         assert len(w) > 0
 
 
-def test_qtype_error_on_invalid_cast(monkeypatch):
+def test_vtype_error_on_invalid_cast(monkeypatch):
     s = polars.Series("Q1", [object()])
 
     def broken_cast(*args, **kwargs):
@@ -77,8 +77,8 @@ def test_qtype_error_on_invalid_cast(monkeypatch):
 
     monkeypatch.setattr(s, "cast", broken_cast)
 
-    with pytest.raises(QuestionTypeError):
-        Question(s).qtype
+    with pytest.raises(VarTypeError):
+        Variable(s).vtype
 
 
 # -------------------------
@@ -88,74 +88,55 @@ def test_qtype_error_on_invalid_cast(monkeypatch):
 
 def test_label_default():
     s = polars.Series("Q1", ["A"])
-    q = Question(s)
+    q = Variable(s)
 
     assert q.label == "Q1"
 
 
 def test_label_custom():
     s = polars.Series("Q1", ["A"])
-    q = Question(s)
+    q = Variable(s)
     q.label = "Custom"
 
     assert q.label == "Custom"
 
 
-def test_label_with_loop():
-    s = polars.Series("Q1", ["A"])
-    q = Question(s)
-    q.loop_id = "L1"
-
-    assert q.label.startswith("[L1]")
-
-
-def test_label_truncation_warning():
-    s = polars.Series("Q1", ["A"])
-    q = Question(s)
-    q.label = "x" * 300
-
-    with warnings.catch_warnings(record=True) as w:
-        label = q.label
-        assert len(label) == 249
-        assert len(w) == 1
-
-
 # -------------------------
-# option_indices
+# value_indices
 # -------------------------
 
 
-def test_option_indices_auto():
+def test_value_indices_auto():
     s = polars.Series("Q1", ["A", "B", "A"])
-    q = Question(s)
+    q = Variable(s)
 
-    mapping = q.option_indices
+    mapping = q.value_indices
 
     assert set(mapping.keys()) == {"A", "B"}
 
 
-def test_option_indices_numeric_empty():
+def test_value_indices_numeric_empty():
     s = polars.Series("Q1", [1, 2, 3])
-    q = Question(s)
+    q = Variable(s)
 
-    assert q.option_indices == {}
+    assert q.value_indices == {}
 
 
-def test_option_indices_set_valid():
+def test_value_indices_set_valid():
     s = polars.Series("Q1", ["A", "B"])
-    q = Question(s)
+    q = Variable(s)
 
-    q.option_indices = {"A": 1, "B": 2}
+    q.value_indices = {"A": 1, "B": 2}
 
-    assert q.option_indices == {"A": 1, "B": 2}
+    assert q.value_indices == {"A": 1, "B": 2}
 
 
-def test_option_indices_set_invalid():
+def test_value_indices_set_invalid():
     s = polars.Series("Q1", ["A", "B"])
-    q = Question(s)
+    q = Variable(s)
 
     with pytest.raises(DataStructureError):
-        q.option_indices = {"A": 1}
+        q.value_indices = {"A": 1}
 
 
 # -------------------------
@@ -165,21 +146,21 @@ def test_option_indices_set_invalid():
 
 def test_strategy_select():
     s = polars.Series("Q1", ["A", "B"])
-    q = Question(s)
+    q = Variable(s)
 
     assert q.strategy.__class__.__name__ == "SelectStrategy"
 
 
 def test_strategy_number():
     s = polars.Series("Q1", [1, 2])
-    q = Question(s)
+    q = Variable(s)
 
     assert q.strategy.__class__.__name__ == "NumberStrategy"
 
 
 def test_strategy_multiselect():
     s = polars.Series("Q1", [["A"], ["B"]])
-    q = Question(s)
+    q = Variable(s)
 
     assert q.strategy.__class__.__name__ == "MultiSelectStrategy"
 
@@ -191,13 +172,13 @@ def test_strategy_multiselect():
 
 def test_to_dict():
     s = polars.Series("Q1", ["A", "B"])
-    q = Question(s)
+    q = Variable(s)
 
     d = q.to_dict()
 
     assert d["id"] == "Q1"
     assert "data" in d
-    assert "qtype" in d
+    assert "vtype" in d
 
 
 # -------------------------
@@ -206,16 +187,16 @@ def test_to_dict():
 #
 
 
-def test_sub_bases_select():
+def test_frequencies_select():
     s = polars.Series("Q1", ["A", "B", "B"])
-    q = Question(s)
+    q = Variable(s)
 
-    assert q.sub_bases == {"A": 1, "B": 2}
+    assert q.frequencies == {"A": 1, "B": 2}
 
 
 def test_sps_calls_strategy(monkeypatch):
     s = polars.Series("Q1", ["A"])
-    q = Question(s)
+    q = Variable(s)
 
     class FakeStrategy:
         def __init__(self, *args, **kwargs):
@@ -224,14 +205,14 @@ def test_sps_calls_strategy(monkeypatch):
         def get_sps(self, label: str):
             return "SPS"
 
-    monkeypatch.setattr("survy.survey.question.SelectStrategy", FakeStrategy)
+    monkeypatch.setattr("survy.survey.variable.SelectStrategy", FakeStrategy)
 
     assert q.sps == "SPS"
 
 
 def test_get_df_calls_strategy():
     s = polars.Series("Q1", ["A"])
-    q = Question(s)
+    q = Variable(s)
 
     assert isinstance(q.get_df(), polars.DataFrame)
 
@@ -243,7 +224,7 @@ def test_get_df_calls_strategy():
 
 def test_get_df_select():
     s = polars.Series("Q1", ["A", "B", "C", "A"])
-    q = Question(s)
+    q = Variable(s)
 
     assert_frame_equal(q.get_df("text"), polars.DataFrame({"Q1": ["A", "B", "C", "A"]}))
     assert_frame_equal(q.get_df("number"), polars.DataFrame({"Q1": [1, 2, 3, 1]}))
@@ -251,7 +232,7 @@ def test_get_df_select():
 
 def test_get_df_select_null():
     s = polars.Series("Q1", ["A", "B", "C", "A", None])
-    q = Question(s)
+    q = Variable(s)
 
     assert_frame_equal(
         q.get_df("text"), polars.DataFrame({"Q1": ["A", "B", "C", "A", None]})
@@ -261,21 +242,21 @@ def test_get_df_select_null():
 
 def test_get_df_number():
     s = polars.Series("Q1", [1, 2, 3, 4, 20])
-    q = Question(s)
+    q = Variable(s)
 
     assert_frame_equal(q.get_df(), polars.DataFrame({"Q1": [1, 2, 3, 4, 20]}))
 
 
 def test_get_df_null():
     s = polars.Series("Q1", [1, 2, 3, 4, 20, 0, None])
-    q = Question(s)
+    q = Variable(s)
 
     assert_frame_equal(q.get_df(), polars.DataFrame({"Q1": [1, 2, 3, 4, 20, 0, None]}))
 
 
 def test_get_df_multiselect():
     s = polars.Series("Q1", [["A", "B"], ["B"], ["B", "C"]])
-    q = Question(s)
+    q = Variable(s)
 
     assert_frame_equal(
         q.get_df(dtype="compact"),
@@ -304,7 +285,7 @@ def test_get_df_multiselect():
 
 def test_get_df_multiselect_null():
     s = polars.Series("Q1", [["A", "B"], ["B"], ["B", "C"], []])
-    q = Question(s)
+    q = Variable(s)
 
     assert_frame_equal(
         q.get_df(dtype="compact"),

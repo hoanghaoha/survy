@@ -1,9 +1,9 @@
 from enum import StrEnum
 
 
-class QuestionType(StrEnum):
+class VarType(StrEnum):
     """
-    Enumeration of supported survey question types.
+    Enumeration of supported survey variable types.
 
     Members:
         SELECT:
@@ -11,14 +11,14 @@ class QuestionType(StrEnum):
             Each response contains one selected option.
 
         MULTISELECT:
-            Multiple-choice question.
+            Multiple-choice varibale.
             Each response may contain multiple selected options (typically as a list).
 
         NUMBER:
-            Numeric question.
+            Numeric variable.
             Responses are treated as continuous or discrete numeric values.
     """
 
     SELECT = "select"
-    MULTISELECT = "multiselect"
+    MULTISELECT = "multi_select"
     NUMBER = "number"
