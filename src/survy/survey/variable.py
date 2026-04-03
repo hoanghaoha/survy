@@ -246,8 +246,7 @@ class Variable:
 
         Args:
             dtype (Literal["number", "text", "compact"], optional):
-                Output format. Defaults to "text".
-                "compact" only use for MULTISELECT.
+                Output format. Defaults to "text". "compact" only use for MULTISELECT.
 
         Returns:
             polars.DataFrame: Processed DataFrame.
