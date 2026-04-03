@@ -5,7 +5,7 @@ import polars as pl
 import pytest
 
 from survy.io.json import read_json, to_json
-from survy.survey.variable import Variable
+from survy.variable.variable import Variable
 from survy.survey.survey import Survey
 
 

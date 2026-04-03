@@ -1,7 +1,7 @@
 from typing import Literal
 
-from survy.survey.variable import VarType
-from survy.separator import MULTISELECT
+from survy.variable.variable import VarType
+from survy.separators import MULTISELECT
 
 
 def variable_labels(

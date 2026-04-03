@@ -1,9 +1,9 @@
 from typing import Literal
 import warnings
 import polars
-from survy.separator import MULTISELECT
-from survy.survey._utils import VarType
-from survy.survey.strategies.base_strategy import BaseStrategy
+from survy.separators import MULTISELECT
+from survy.variable._utils import VarType
+from survy.variable.strategies.base_strategy import BaseStrategy
 from survy.utils.spss import mrset, value_labels, variable_labels, variable_level
 
 

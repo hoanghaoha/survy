@@ -3,7 +3,7 @@ from typing import Any, Literal
 import warnings
 import polars
 
-from survy.survey.variable import Variable, VarType
+from survy.variable.variable import Variable, VarType
 from survy.utils.spss import ctables
 
 

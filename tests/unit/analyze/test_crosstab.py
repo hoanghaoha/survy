@@ -3,7 +3,7 @@ import polars as pl
 import numpy as np
 
 from survy.analyze.crosstab.functions import crosstab
-from survy.survey.variable import Variable
+from survy.variable.variable import Variable
 
 
 @pytest.fixture
@@ -170,4 +170,3 @@ def test_count_sum_consistency(sample_data):
     total_row = df.filter(pl.col(df.columns[0]) == "Total")
 
     assert total_row.height == 1
-

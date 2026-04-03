@@ -3,7 +3,7 @@ import polars as pl
 import pytest
 
 from survy.io.spss import to_spss
-from survy.survey.variable import Variable
+from survy.variable.variable import Variable
 from survy.survey.survey import Survey
 
 

@@ -1,7 +1,7 @@
 from typing import Literal
 import polars
-from survy.survey._utils import VarType
-from survy.survey.strategies.base_strategy import BaseStrategy
+from survy.variable._utils import VarType
+from survy.variable.strategies.base_strategy import BaseStrategy
 from survy.utils.spss import value_labels, variable_labels, variable_level
 
 
