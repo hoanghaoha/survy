@@ -2,7 +2,7 @@ import re
 from itertools import chain
 from typing import Any
 
-from survy.separator import SEPARATORS
+from survy.separators import SEPARATORS
 from survy.errors import ParseError
 
 

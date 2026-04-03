@@ -3,7 +3,7 @@ import polars
 
 from survy.errors import FileTypeError
 from survy.io.polars import read_polars
-from survy.survey._utils import VarType
+from survy.variable._utils import VarType
 from survy.survey.survey import Survey
 
 

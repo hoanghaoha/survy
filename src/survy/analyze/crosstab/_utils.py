@@ -4,8 +4,8 @@ import pandas
 import polars
 import polars.selectors as cs
 
-from survy.survey._utils import VarType
-from survy.survey.variable import Variable
+from survy.variable._utils import VarType
+from survy.variable.variable import Variable
 
 CatAggFunc: TypeAlias = Literal["count", "percent"]
 """

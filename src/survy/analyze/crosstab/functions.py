@@ -1,5 +1,5 @@
 from survy.analyze.crosstab._utils import AggFunc, CrosstabExecutor
-from survy.survey.variable import Variable
+from survy.variable.variable import Variable
 
 
 def crosstab(

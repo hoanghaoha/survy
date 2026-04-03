@@ -3,7 +3,7 @@ import warnings
 from dataclasses import dataclass, field
 import polars
 
-from survy.survey.variable import Variable
+from survy.variable.variable import Variable
 from survy.survey.survey import Survey
 from survy.utils.functions import parse_id
 

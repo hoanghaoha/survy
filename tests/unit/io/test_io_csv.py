@@ -4,7 +4,7 @@ from pathlib import Path
 
 from survy.io.csv import read_csv, to_csv
 from survy.errors import FileTypeError
-from survy.survey.variable import Variable
+from survy.variable.variable import Variable
 from survy.survey.survey import Survey
 
 

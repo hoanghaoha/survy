@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 from survy.errors import DataStructureError
 from survy.survey.survey import Survey
-from survy.survey.variable import Variable
+from survy.variable.variable import Variable
 
 
 @pytest.fixture

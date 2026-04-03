@@ -3,14 +3,9 @@ import polars
 from polars.testing import assert_frame_equal
 import warnings
 
-from survy.survey.variable import Variable
 from survy.errors import DataStructureError, VarTypeError
-from survy.survey._utils import VarType
-
-
-# -------------------------
-# Basic properties
-# -------------------------
+from survy.variable.variable import Variable
+from survy.variable._utils import VarType
 
 
 def test_variable_id():
@@ -32,11 +27,6 @@ def test_base_counts_non_empty():
     q = Variable(s)
 
     assert q.base == 2
-
-
-# -------------------------
-# vtype inference
-# -------------------------
 
 
 def test_vtype_select():
@@ -81,11 +71,6 @@ def test_vtype_error_on_invalid_cast(monkeypatch):
         Variable(s).vtype
 
 
-# -------------------------
-# label logic
-# -------------------------
-
-
 def test_label_default():
     s = polars.Series("Q1", ["A"])
     q = Variable(s)
@@ -99,11 +84,6 @@ def test_label_custom():
     q.label = "Custom"
 
     assert q.label == "Custom"
-
-
-# -------------------------
-# value_indices
-# -------------------------
 
 
 def test_value_indices_auto():
@@ -139,11 +119,6 @@ def test_value_indices_set_invalid():
         q.value_indices = {"A": 1}
 
 
-# -------------------------
-# strategy selection
-# -------------------------
-
-
 def test_strategy_select():
     s = polars.Series("Q1", ["A", "B"])
     q = Variable(s)
@@ -165,11 +140,6 @@ def test_strategy_multiselect():
     assert q.strategy.__class__.__name__ == "MultiSelectStrategy"
 
 
-# -------------------------
-# to_dict
-# -------------------------
-
-
 def test_to_dict():
     s = polars.Series("Q1", ["A", "B"])
     q = Variable(s)
@@ -179,12 +149,6 @@ def test_to_dict():
     assert d["id"] == "Q1"
     assert "data" in d
     assert "vtype" in d
-
-
-# -------------------------
-# delegation (strategy methods)
-# -------------------------
-#
 
 
 def test_frequencies_select():
@@ -205,7 +169,7 @@ def test_sps_calls_strategy(monkeypatch):
         def get_sps(self, label: str):
             return "SPS"
 
-    monkeypatch.setattr("survy.survey.variable.SelectStrategy", FakeStrategy)
+    monkeypatch.setattr("survy.variable.variable.SelectStrategy", FakeStrategy)
 
     assert q.sps == "SPS"
 
@@ -215,11 +179,6 @@ def test_get_df_calls_strategy():
     q = Variable(s)
 
     assert isinstance(q.get_df(), polars.DataFrame)
-
-
-# -------------------------
-# DataFrame
-# -------------------------
 
 
 def test_get_df_select():

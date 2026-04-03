@@ -3,7 +3,7 @@ from pathlib import Path
 
 import polars
 
-from survy.survey.variable import Variable
+from survy.variable.variable import Variable
 from survy.survey.survey import Survey
 
 
