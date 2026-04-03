@@ -1,3 +1,2 @@
 SEPARATORS = [".", "/", ":", "#", "@", ";", "_"]
-
 MULTISELECT = "_"

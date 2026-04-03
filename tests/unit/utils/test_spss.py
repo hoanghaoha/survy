@@ -7,8 +7,8 @@ from survy.utils.spss import (
     mrset,
     ctables,
 )
-from survy.survey.variable import VarType
-from survy.separator import MULTISELECT
+from survy.variable.variable import VarType
+from survy.separators import MULTISELECT
 
 
 def test_variable_labels_select():

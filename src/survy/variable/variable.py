@@ -4,11 +4,11 @@ import warnings
 import polars
 
 from survy.errors import DataStructureError, VarTypeError
-from survy.survey._utils import VarType
-from survy.survey.strategies.base_strategy import BaseStrategy
-from survy.survey.strategies.multiselect_strategy import MultiSelectStrategy
-from survy.survey.strategies.number_strategy import NumberStrategy
-from survy.survey.strategies.select_strategy import SelectStrategy
+from survy.variable._utils import VarType
+from survy.variable.strategies.base_strategy import BaseStrategy
+from survy.variable.strategies.multiselect_strategy import MultiSelectStrategy
+from survy.variable.strategies.number_strategy import NumberStrategy
+from survy.variable.strategies.select_strategy import SelectStrategy
 from survy.utils.functions import extract_mapping
 
 
