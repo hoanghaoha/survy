@@ -4,6 +4,7 @@ import pandas
 import polars
 import polars.selectors as cs
 
+from survy.errors import VarTypeError
 from survy.variable._utils import VarType
 from survy.variable.variable import Variable
 
@@ -25,6 +26,8 @@ General aggregation type accepted by crosstab operations.
 
 def _get_filter(filter: Variable | None, len_: int):
     if filter:
+        if filter.vtype == VarType.NUMBER:
+            raise VarTypeError(f"NUMBER {filter.id} can not be set as filter")
         series = polars.Series("FILTER", filter.series.to_list())
     else:
         series = polars.Series("FILTER", ["Total" for _ in range(len_)])
@@ -161,9 +164,11 @@ class CrosstabExecutor:
             .rename(columns={"row_0": self.row.id + "/" + self.column.id})
         )
 
-        return polars.DataFrame(crosstab.to_dict("records")).cast(
-            {cs.numeric(): polars.Int64}
-        )
+        records = [
+            {str(k): v for k, v in row.items()} for row in crosstab.to_dict("records")
+        ]
+
+        return polars.DataFrame(records).cast({cs.numeric(): polars.Int64})
 
     def crosstab_percent(self, filter_by: str) -> polars.DataFrame:
         """
@@ -208,9 +213,11 @@ class CrosstabExecutor:
             .rename(columns={"row_0": self.row.id + "/" + self.column.id})
         )
 
-        return polars.DataFrame(crosstab.to_dict("records")).cast(
-            {cs.numeric(): polars.Float16}
-        )
+        records = [
+            {str(k): v for k, v in row.items()} for row in crosstab.to_dict("records")
+        ]
+
+        return polars.DataFrame(records).cast({cs.numeric(): polars.Float16})
 
     def crosstab_number(self, filter_by: str, aggfunc: AggFunc) -> polars.DataFrame:
         """
@@ -255,7 +262,11 @@ class CrosstabExecutor:
             margins_name="Total",
         ).transpose()
 
-        return polars.DataFrame(crosstab.to_dict("records"))
+        records = [
+            {str(k): v for k, v in row.items()} for row in crosstab.to_dict("records")
+        ]
+
+        return polars.DataFrame(records)
 
     def run(self, aggfunc: AggFunc) -> dict[str, polars.DataFrame]:
         """

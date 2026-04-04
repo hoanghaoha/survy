@@ -1,0 +1,130 @@
+from typing import Literal
+import polars
+import pytest
+from pathlib import Path
+import survy
+from survy import read_csv
+from survy.analyze.crosstab._utils import AggFunc
+from survy.errors import DataStructureError, VarTypeError
+from survy.survey.survey import Survey
+from survy.variable._utils import VarType
+from survy.variable.variable import Variable
+
+FIXTURES = Path(__file__).parent.parent / "fixtures"
+
+
+@pytest.fixture
+def survey() -> Survey:
+    return read_csv(
+        FIXTURES / "test_data_01_compact.csv", compact_ids=["Q2", "Q5/1", "Q5/2"]
+    )
+
+
+def test_survey(survey: Survey):
+    assert len(survey.variables) == 7
+    assert isinstance(survey.sps, str)
+
+
+def test_survey_update(survey: Survey):
+    survey.update(
+        [{"id": "Q1", "label": "Gender", "value_indices": {"Male": 1, "Female": 2}}]
+    )
+    assert survey["Q1"].label == "Gender"
+
+
+def test_survey_update_error(survey: Survey):
+    with pytest.raises(DataStructureError):
+        survey.update([{"id": "Q1", "label": "Gender", "value_indices": {"Male": 1}}])
+
+
+@pytest.mark.parametrize("id", ["Q1", "Q2", "Q3", "Q4/1", "Q4/2", "Q5/1", "Q5/2"])
+def test_survey_variables(survey: Survey, id: str):
+    var_ids = [var.id for var in survey.variables]
+    assert id in var_ids
+
+    assert isinstance(survey[id], Variable)
+    assert isinstance(survey[id].series, polars.Series)
+    assert isinstance(survey[id].id, str)
+    assert isinstance(survey[id].label, str)
+    assert isinstance(survey[id].value_indices, dict)
+    assert isinstance(survey[id].vtype, VarType)
+    assert isinstance(survey[id].base, int)
+
+
+@pytest.mark.parametrize(
+    "select_dtype, multiselect_dtype",
+    [
+        ["text", "text"],
+        ["text", "number"],
+        ["text", "compact"],
+        ["number", "text"],
+        ["number", "number"],
+        ["number", "compact"],
+    ],
+)
+def test_survey_df(
+    survey: Survey,
+    select_dtype: Literal["text", "number"],
+    multiselect_dtype: Literal["text", "number", "compact"],
+):
+    df = survey.get_df(select_dtype, multiselect_dtype)
+
+    assert df.height == 100
+
+    if multiselect_dtype == "compact":
+        assert df.width == 7
+    else:
+        assert df.width == 11
+
+
+@pytest.mark.parametrize("aggfunc", ["count", "percent", "mean"])
+@pytest.mark.parametrize(
+    "column_id", ["Q1", "Q2", "Q3", "Q4/1", "Q4/2", "Q5/1", "Q5/2"]
+)
+@pytest.mark.parametrize("row_id", ["Q1", "Q2", "Q3", "Q4/1", "Q4/2", "Q5/1", "Q5/2"])
+def test_crosstab_no_filter(
+    survey: Survey,
+    aggfunc: AggFunc,
+    column_id: str,
+    row_id: str,
+):
+    crosstab = survy.crosstab(survey[column_id], survey[row_id], None, aggfunc)
+    assert isinstance(crosstab, dict)
+    assert "Total" in crosstab.keys()
+    assert crosstab["Total"].height > 0
+    assert crosstab["Total"].width > 0
+    assert all(
+        [
+            value in crosstab["Total"].columns
+            for value in survey[column_id].value_indices.keys()
+        ]
+    )
+
+
+@pytest.mark.parametrize("aggfunc", ["count", "percent", "mean"])
+@pytest.mark.parametrize("column_id", ["Q1", "Q2", "Q3"])
+@pytest.mark.parametrize("row_id", ["Q1", "Q2", "Q3"])
+@pytest.mark.parametrize("filter_id", ["Q1", "Q2"])
+def test_crosstab_with_filter(
+    survey: Survey, aggfunc: AggFunc, column_id: str, row_id: str, filter_id: str
+):
+    crosstab = survy.crosstab(
+        survey[column_id], survey[row_id], survey[filter_id], aggfunc
+    )
+    for key in survey[filter_id].value_indices.keys():
+        assert key in crosstab
+        assert crosstab[key].height > 0
+        assert crosstab[key].width > 0
+
+
+@pytest.mark.parametrize("aggfunc", ["count", "percent", "mean"])
+@pytest.mark.parametrize("column_id", ["Q1", "Q2", "Q4/1", "Q4/2", "Q5/1", "Q5/2"])
+@pytest.mark.parametrize("row_id", ["Q1", "Q2", "Q3", "Q4/1", "Q4/2", "Q5/1", "Q5/2"])
+def test_crosstab_error(survey: Survey, aggfunc: AggFunc, column_id: str, row_id: str):
+    with pytest.raises(VarTypeError):
+        assert survy.crosstab(
+            survey[column_id],
+            survey[row_id],
+            survey["Q3"],
+            aggfunc,
+        )
