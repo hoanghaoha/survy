@@ -1,0 +1,101 @@
+Q1,Q2_1,Q2_2,Q2_3,Q3,Q4/1,Q4/2,Q5/1_1,Q5/1_2,Q5/2_1,Q5/2_2
+Female,,Book,,1987,Important,Unimportant,,,Day,
+Male,Sport,Book,Coffee,1980,Very important,Very important,Day,,,Night
+Female,,Book,Coffee,1991,Very unimportant,Very unimportant,,Night,,
+Male,Sport,Book,,1980,Important,Very important,Day,,,
+Male,,,Coffee,1990,Very unimportant,Important,,Night,Day,
+Male,,Book,,1997,Very important,Important,,,Day,
+Male,,Book,Coffee,1997,Important,Very important,,,Day,
+Male,,Book,Coffee,2015,Unimportant,Important,Day,,Day,Night
+Female,Sport,,Coffee,2005,Very unimportant,Very unimportant,,Night,Day,
+Male,Sport,,Coffee,2003,Unimportant,Important,Day,Night,,
+Male,Sport,Book,,2017,Important,Very important,,,,Night
+Male,Sport,,Coffee,1977,Very unimportant,Unimportant,,,Day,
+Female,,Book,,1980,Important,Unimportant,Day,Night,,
+Male,Sport,,Coffee,2001,Important,Important,,,,Night
+Male,Sport,,,2008,Important,Important,,,,
+Female,,Book,Coffee,2004,Very unimportant,Unimportant,Day,,Day,
+Male,Sport,Book,Coffee,2017,Important,Unimportant,Day,Night,,
+Female,Sport,Book,Coffee,1976,Very important,Very unimportant,Day,,Day,Night
+Female,Sport,Book,Coffee,2010,Very unimportant,Very important,,Night,Day,Night
+Male,Sport,,Coffee,1993,Unimportant,Unimportant,Day,,,
+Male,,Book,Coffee,1983,Important,Unimportant,,,,Night
+Male,Sport,,,1980,Very unimportant,Very important,,Night,,
+Female,,Book,Coffee,2016,Very unimportant,Very important,,Night,Day,
+Female,,Book,Coffee,1991,Unimportant,Very important,Day,,Day,
+Male,Sport,Book,Coffee,1998,Unimportant,Very important,,Night,,
+Female,,Book,,2009,Very unimportant,Very important,Day,Night,Day,Night
+Male,,,Coffee,1992,Important,Unimportant,Day,Night,,
+Female,,,,1973,Very important,Very unimportant,,,Day,Night
+Female,Sport,Book,,1970,Very unimportant,Important,,,Day,
+Female,Sport,,Coffee,1989,Very unimportant,Very important,,Night,,
+Male,,,Coffee,2020,Very unimportant,Very important,Day,,,
+Male,,,,2011,Important,Very important,,Night,Day,Night
+Male,,,Coffee,2013,Very important,Unimportant,,,Day,Night
+Female,,Book,,1983,Unimportant,Unimportant,,Night,,Night
+Female,,Book,Coffee,1973,Important,Unimportant,Day,Night,,Night
+Male,Sport,Book,Coffee,1991,Important,Important,Day,,,Night
+Male,,,Coffee,1973,Important,Very important,,,,
+Male,,,Coffee,1985,Important,Important,Day,,Day,Night
+Male,,Book,Coffee,1990,Very unimportant,Unimportant,Day,Night,Day,
+Female,,,,1983,Very unimportant,Very unimportant,,,Day,
+Male,,Book,,1991,Unimportant,Very unimportant,Day,,,
+Female,Sport,Book,Coffee,2002,Very unimportant,Very unimportant,,Night,Day,Night
+Female,,,Coffee,1970,Very unimportant,Important,,Night,,
+Female,,,Coffee,2012,Very unimportant,Unimportant,Day,,,
+Female,,,,2019,Very unimportant,Important,,Night,Day,Night
+Female,Sport,,,2012,Important,Unimportant,,,Day,Night
+Male,,Book,Coffee,1988,Very important,Important,,,Day,
+Male,Sport,Book,Coffee,2015,Unimportant,Important,Day,Night,Day,Night
+Female,,,,2018,Unimportant,Very important,Day,Night,,
+Female,,Book,Coffee,2007,Unimportant,Important,,Night,Day,Night
+Female,Sport,Book,,1979,Unimportant,Very important,,Night,Day,Night
+Female,Sport,Book,Coffee,1995,Very unimportant,Very important,,Night,,
+Female,Sport,Book,,2001,Very important,Important,,,Day,Night
+Male,Sport,,,2014,Very unimportant,Unimportant,,,,
+Female,,Book,Coffee,2020,Important,Important,Day,,Day,Night
+Male,,Book,,2014,Very unimportant,Very unimportant,Day,,,
+Female,Sport,Book,Coffee,1994,Important,Important,,,Day,Night
+Female,Sport,,,2007,Unimportant,Very important,Day,,,Night
+Male,,Book,,1995,Important,Very unimportant,Day,Night,,Night
+Female,Sport,Book,,2018,Important,Important,,,,Night
+Female,,Book,Coffee,1998,Very unimportant,Very unimportant,,Night,,Night
+Male,Sport,Book,,2012,Very unimportant,Unimportant,,Night,,Night
+Female,,Book,Coffee,1982,Very unimportant,Very important,Day,,,Night
+Female,Sport,,Coffee,2006,Important,Very important,Day,,,
+Male,,Book,Coffee,2004,Important,Important,Day,Night,Day,
+Male,Sport,Book,Coffee,1999,Very important,Very important,Day,Night,Day,Night
+Female,,,Coffee,2001,Very unimportant,Very important,Day,Night,Day,Night
+Male,Sport,Book,Coffee,2011,Very important,Unimportant,Day,,Day,Night
+Female,,Book,Coffee,1986,Very important,Unimportant,Day,,Day,
+Female,,Book,,1988,Unimportant,Important,Day,,,Night
+Male,,Book,Coffee,1978,Important,Very unimportant,,,,
+Male,Sport,,Coffee,1997,Unimportant,Very unimportant,,Night,,Night
+Female,Sport,Book,,1988,Important,Very unimportant,Day,,,Night
+Male,,,Coffee,1992,Very important,Important,Day,Night,,Night
+Female,Sport,,,1981,Important,Important,Day,,Day,
+Male,,Book,Coffee,2006,Unimportant,Important,,Night,Day,Night
+Female,,,Coffee,1991,Very important,Unimportant,,,Day,
+Female,Sport,Book,,1987,Very important,Unimportant,,,Day,
+Male,,,,2006,Unimportant,Important,Day,,Day,
+Male,Sport,,,2009,Important,Very unimportant,,Night,Day,
+Female,Sport,,,1976,Very unimportant,Very important,Day,,,
+Female,Sport,Book,Coffee,2001,Unimportant,Very important,Day,,Day,
+Female,,Book,,1970,Important,Very unimportant,Day,Night,,Night
+Female,,,Coffee,1980,Very unimportant,Unimportant,,Night,,Night
+Female,Sport,Book,Coffee,2002,Very unimportant,Very unimportant,Day,,Day,Night
+Male,,Book,,2014,Unimportant,Unimportant,Day,,Day,
+Female,Sport,,,1990,Very important,Very important,Day,,Day,Night
+Female,Sport,Book,Coffee,1995,Very unimportant,Unimportant,,Night,Day,
+Female,Sport,,Coffee,2011,Unimportant,Very unimportant,,,Day,
+Female,,Book,,2020,Unimportant,Very unimportant,Day,,Day,Night
+Male,,Book,Coffee,2011,Very important,Very important,,Night,,
+Male,,,,2011,Very important,Important,Day,,Day,
+Male,,Book,Coffee,2019,Important,Very unimportant,Day,,Day,
+Male,Sport,,Coffee,1998,Important,Important,Day,,,
+Male,,,,2007,Important,Important,Day,Night,Day,Night
+Male,,Book,Coffee,1986,Very unimportant,Very unimportant,,,,Night
+Male,Sport,,,2016,Very unimportant,Very important,,,,Night
+Female,Sport,,,2001,Very important,Important,,Night,,Night
+Male,,Book,,1998,Important,Very unimportant,,Night,,
+Male,,Book,,1998,Important,Very unimportant,,Night,,

@@ -1,3 +1,3 @@
-SEPARATORS = [".", "/", ":", "#", "@", ";", "_"]
+SEPARATORS = [".", ":", "_"]
 
 MULTISELECT = "_"
