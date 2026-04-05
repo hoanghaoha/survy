@@ -149,7 +149,7 @@ def test_survey_export_csv(survey: Survey, tmp_path: Path):
 
 
 def test_survey_export_json(survey: Survey, tmp_path: Path):
-    survey.to_json(tmp_path, "test_survey.json")
+    survey.to_json(tmp_path, "test_survey")
 
     assert (tmp_path / "test_survey.json").exists()
 
@@ -158,7 +158,6 @@ def test_survey_export_spss(survey: Survey, tmp_path: Path):
     for var in survey.variables:
         var.series = var.series.rename(var.series.name.replace("/", "."))
 
-    print(survey.get_df())
     survey.to_spss(tmp_path, "test_survey")
 
     assert (tmp_path / "test_survey_data.sav").exists()

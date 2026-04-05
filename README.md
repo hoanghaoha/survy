@@ -145,8 +145,8 @@ survey.update([
 ### Export
 
 ```python
-survey.to_csv("output.csv")
-survey.to_spss("output.sav")
+survey.to_csv(name="output")
+survey.to_spss(name="output")
 ```
 
 ---

@@ -93,7 +93,7 @@ def make_sample_survey():
 def test_to_json_success(tmp_path: Path):
     survey = make_sample_survey()
 
-    to_json(survey, tmp_path, name="out.json")
+    to_json(survey, tmp_path, name="out")
 
     output_file = tmp_path / "out.json"
     assert output_file.exists()
@@ -108,7 +108,7 @@ def test_to_json_success(tmp_path: Path):
 def test_to_json_path_as_str(tmp_path: Path):
     survey = make_sample_survey()
 
-    to_json(survey, str(tmp_path), name="out.json")
+    to_json(survey, str(tmp_path), name="out")
 
     assert (tmp_path / "out.json").exists()
 

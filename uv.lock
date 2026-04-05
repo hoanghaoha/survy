@@ -532,8 +532,8 @@ wheels = [
 ]
 
 [[package]]
-name = "surpy"
-version = "0.1.0"
+name = "survy"
+version = "0.1.1"
 source = { editable = "." }
 dependencies = [
     { name = "numpy" },

@@ -52,7 +52,7 @@ def read_excel(
 
 def to_excel(
     survey: Survey,
-    path: str | Path,
+    path: str | Path = "",
     name: str = "survey",
     compact: bool = True,
     compact_separator: str = ";",

@@ -40,7 +40,7 @@ def read_json(path: str | Path) -> Survey:
 
 
 def to_json(
-    survey: Survey, path: str | Path, name: str = "survey", encoding: str = "utf-8"
+    survey: Survey, path: str | Path = "", name: str = "survey", encoding: str = "utf-8"
 ) -> None:
     """Serialize a Survey object to a JSON file.
 
@@ -66,5 +66,5 @@ def to_json(
         "variables": [variable.to_dict() for variable in survey.variables],
     }
 
-    with open(path / name, "w", encoding=encoding) as f:
+    with open(path / f"{name}.json", "w", encoding=encoding) as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
