@@ -6,7 +6,7 @@ from survy.survey.survey import Survey
 
 
 def to_spss(
-    survey: Survey, path: str | Path, name: str = "survey", encoding: str = "utf-8"
+    survey: Survey, path: str | Path = "", name: str = "survey", encoding: str = "utf-8"
 ):
     """Export a Survey to SPSS data and syntax files.
 
