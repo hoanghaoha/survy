@@ -1,5 +1,6 @@
 from typing import Literal
 import polars
+from polars.testing import assert_frame_equal
 import pytest
 from pathlib import Path
 import survy
@@ -18,6 +19,15 @@ def survey() -> Survey:
     return read_csv(
         FIXTURES / "test_data_01_compact.csv", compact_ids=["Q2", "Q5/1", "Q5/2"]
     )
+
+
+@pytest.fixture
+def survey_normal() -> Survey:
+    return read_csv(FIXTURES / "test_data_01_normal.csv")
+
+
+def test_similar_survey(survey: Survey, survey_normal: Survey):
+    assert_frame_equal(survey.get_df(), survey_normal.get_df())
 
 
 def test_survey(survey: Survey):
@@ -128,3 +138,28 @@ def test_crosstab_error(survey: Survey, aggfunc: AggFunc, column_id: str, row_id
             survey["Q3"],
             aggfunc,
         )
+
+
+def test_survey_export_csv(survey: Survey, tmp_path: Path):
+    survey.to_csv(tmp_path, "test_survey")
+
+    assert (tmp_path / "test_survey_data.csv").exists()
+    assert (tmp_path / "test_survey_variables_info.csv").exists()
+    assert (tmp_path / "test_survey_options_info.csv").exists()
+
+
+def test_survey_export_json(survey: Survey, tmp_path: Path):
+    survey.to_json(tmp_path, "test_survey.json")
+
+    assert (tmp_path / "test_survey.json").exists()
+
+
+def test_survey_export_spss(survey: Survey, tmp_path: Path):
+    for var in survey.variables:
+        var.series = var.series.rename(var.series.name.replace("/", "."))
+
+    print(survey.get_df())
+    survey.to_spss(tmp_path, "test_survey")
+
+    assert (tmp_path / "test_survey_data.sav").exists()
+    assert (tmp_path / "test_survey_syntax.sps").exists()
