@@ -25,6 +25,25 @@ class Survey:
     def __init__(self, variables: list[Variable]):
         self.variables = variables
 
+    def __str__(self) -> str:
+        """Return a human-readable summary of the survey.
+
+        Returns:
+            str: A string listing the number of variables and each variable's
+                string representation.
+
+        Examples:
+            >>> print(survey)
+            Survey (3 variables)
+                Variable(id=Q1, label=Gender, value_indices={'Male': 1, 'Female': 2}, base=100)"
+                Variable(id=Q2, label=Age Group, value_indices={'18-24': 1, '25-30': 2, '31-49': 3}, base=100)"
+                Variable(id=Q3, label=City, value_indices={'Ha Noi': 1, 'Ho Chi Minh': 2}, base=100)"
+        """
+        lines = [f"Survey ({len(self.variables)} variables)"]
+        for variable in self.variables:
+            lines.append(f"  {variable}")
+        return "\n".join(lines)
+
     def __getitem__(self, variable_id: str):
         """Retrieve a Variable by its ID.
 

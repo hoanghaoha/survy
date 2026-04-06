@@ -25,6 +25,12 @@ def number_variable():
     return Variable(series=polars.Series("Q3", [24, 22, 4, 209]))
 
 
+def test_survey_str(select_variable, multiselect_variable, number_variable):
+    survey = Survey(variables=[select_variable, multiselect_variable, number_variable])
+    assert str(survey)
+    print("\n", survey)
+
+
 def test_survey_get_variable(select_variable, multiselect_variable, number_variable):
     survey = Survey(variables=[select_variable, multiselect_variable, number_variable])
     assert survey["Q1"] == select_variable
