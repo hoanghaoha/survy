@@ -36,6 +36,12 @@ class Variable:
 
         assert self.vtype
 
+    def __str__(self) -> str:
+        """
+        Representation string of variable.
+        """
+        return f"Variable(id={self.id}, label={self.label}, value_indices={self.value_indices}, base={self.base})"
+
     @property
     def id(self) -> str:
         """
@@ -202,6 +208,18 @@ class Variable:
             VarType.MULTISELECT: MultiSelectStrategy,
             VarType.NUMBER: NumberStrategy,
         }[self.vtype](self.series, self.value_indices)
+
+    def replace(self, mapping: dict[str, str]) -> None:
+        """
+        Replace a values in variable data by a given mapping.
+
+        Args:
+            mapping (dict[str, str]): A mapping for replace values
+
+        Returns:
+            None
+        """
+        self.series = self.series.replace(mapping)
 
     def to_dict(self) -> dict:
         """

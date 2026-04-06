@@ -15,6 +15,26 @@ def test_variable_id():
     assert q.id == "Q1"
 
 
+def test_variable_str():
+    s = polars.Series("Q1", ["A", "B"])
+    q = Variable(s)
+    q.label = "Question 1"
+    assert (
+        str(q)
+        == """Variable(id=Q1, label=Question 1, value_indices={'A': 1, 'B': 2}, base=2)"""
+    )
+
+    assert q.id == "Q1"
+
+
+def test_variable_replace():
+    s = polars.Series("Q1", ["A", "B"])
+    q = Variable(s)
+    q.replace({"A": "A1"})
+
+    assert q.value_indices == {"A1": 1, "B": 2}
+
+
 def test_len_property():
     s = polars.Series("Q1", ["A", "B", None])
     q = Variable(s)
