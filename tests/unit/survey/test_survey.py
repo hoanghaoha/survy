@@ -46,6 +46,56 @@ def test_survey_get_variable_error(
         assert survey["Q4"]
 
 
+def test_survey_add_new_variable(
+    select_variable, multiselect_variable, number_variable
+):
+    survey = Survey(variables=[select_variable, multiselect_variable, number_variable])
+    series = polars.Series("Q4", ["d", "e", "f", "g"])
+    survey.add(Variable(series))
+    assert survey["Q4"]
+
+
+def test_survey_add_new_variable_by_series(
+    select_variable, multiselect_variable, number_variable
+):
+    survey = Survey(variables=[select_variable, multiselect_variable, number_variable])
+    survey.add(polars.Series("Q4", ["d", "e", "f", "g"]))
+    assert survey["Q4"]
+
+
+def test_survey_add_exist_varible_id(
+    select_variable, multiselect_variable, number_variable
+):
+    survey = Survey(variables=[select_variable, multiselect_variable, number_variable])
+    series = polars.Series("Q1", [["x", "z"], ["x", "y", "z"], ["y", "z"], ["z"]])
+    survey.add(Variable(series))
+    print(survey)
+    assert survey["Q1#1"]
+
+
+def test_survey_drop_variable(select_variable, multiselect_variable, number_variable):
+    survey = Survey(variables=[select_variable, multiselect_variable, number_variable])
+    survey.drop("Q1")
+    assert len(survey.variables) == 2
+    assert "Q1" not in [var.id for var in survey.variables]
+
+
+def test_survey_sort_variable(select_variable, multiselect_variable, number_variable):
+    survey = Survey(variables=[select_variable, multiselect_variable, number_variable])
+    survey.add(polars.Series("Q0", ["x", "y", "x", "z"]))
+    survey.sort()
+    assert [var.id for var in survey.variables] == sorted(["Q0", "Q1", "Q2", "Q3"])
+
+
+def test_survey_sort_reverse(select_variable, multiselect_variable, number_variable):
+    survey = Survey(variables=[select_variable, multiselect_variable, number_variable])
+    survey.add(polars.Series("Q0", ["x", "y", "x", "z"]))
+    survey.sort(reverse=True)
+    assert [var.id for var in survey.variables] == sorted(
+        ["Q0", "Q1", "Q2", "Q3"], reverse=True
+    )
+
+
 def test_survey_get_df_text_compact(
     select_variable, multiselect_variable, number_variable
 ):
