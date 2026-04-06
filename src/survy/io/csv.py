@@ -11,6 +11,7 @@ def read_csv(
     path: str | Path,
     compact_ids: list[str] | None = None,
     compact_separator: str = ";",
+    auto_detect: bool = False,
     name_pattern: str = "id(_multi)?",
 ) -> Survey:
     """
@@ -25,6 +26,8 @@ def read_csv(
             IDs of variables using compact multi-select encoding.
         compact_separator (str):
             Separator for compact multi-select values.
+        auto_detect (bool):
+            Auto parse multi-select if data have compact_separator.
         name_pattern (str):
             Pattern for parsing column names into id/loop/multi components.
 
@@ -46,6 +49,7 @@ def read_csv(
         raw_df=polars.read_csv(path),
         compact_ids=compact_ids,
         compact_separator=compact_separator,
+        auto_detect=auto_detect,
         name_pattern=name_pattern,
     )
 

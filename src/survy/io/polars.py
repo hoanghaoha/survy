@@ -12,6 +12,7 @@ from survy.utils.functions import parse_id
 class PolarReader:
     compact_ids: list[str]
     compact_separator: str
+    auto_detect: bool
     name_pattern: str
     data: dict = field(default_factory=dict)
     type_map: dict[str, str] = field(default_factory=dict)
@@ -47,6 +48,8 @@ class PolarReader:
         id, multi_id = self._parse_id(series.name)
         data = series.to_list()
         if id in self.compact_ids:
+            self._read_multi_compact(id, data)
+        elif self.auto_detect and any([self.compact_separator in str(d) for d in data]):
             self._read_multi_compact(id, data)
         elif multi_id:
             self._read_multi(id, data)
@@ -119,6 +122,7 @@ def read_polars(
     raw_df: polars.DataFrame,
     compact_ids: list[str] | None = None,
     compact_separator: str = ";",
+    auto_detect: bool = False,
     name_pattern: str = "id(_multi)?",
     exclude_null: bool = True,
 ) -> Survey:
@@ -133,6 +137,8 @@ def read_polars(
             IDs of variables using compact multi-select encoding.
         compact_separator (str):
             Separator for compact multi-select values.
+        auto_detect (bool):
+            Auto parse multi-select if data have compact_separator.
         name_pattern (str):
             Pattern for parsing column names into id/multi components.
         exclude_null (bool):
@@ -142,6 +148,6 @@ def read_polars(
         Survey: Parsed survey object.
     """
     compact_ids = compact_ids or []
-    reader = PolarReader(compact_ids, compact_separator, name_pattern)
+    reader = PolarReader(compact_ids, compact_separator, auto_detect, name_pattern)
     reader.read_df(raw_df)
     return reader.to_survey(exclude_null)

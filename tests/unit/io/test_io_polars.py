@@ -81,6 +81,31 @@ def test_read_polars(
     )
 
 
+@pytest.mark.parametrize(
+    "df_fixture, name_pattern",
+    [
+        ("sample_df_pattern_1", "id(_multi)?"),
+        ("sample_df_pattern_2", "(multi_)?id"),
+    ],
+)
+def test_read_polars_auto_detect(
+    request: pytest.FixtureRequest, df_fixture: str, name_pattern: str
+):
+    df = request.getfixturevalue(df_fixture)
+    survey = read_polars(
+        df,
+        compact_ids=[],
+        compact_separator=";",
+        auto_detect=True,
+        name_pattern=name_pattern,
+    )
+
+    assert_frame_equal(
+        survey.get_df(multiselect_dtype="compact"),
+        expected_df,
+    )
+
+
 def test_read_df_with_null(sample_df_with_null):
     with pytest.warns(UserWarning):
         survey = read_polars(
