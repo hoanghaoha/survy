@@ -27,6 +27,14 @@ def test_variable_str():
     assert q.id == "Q1"
 
 
+def test_variable_rename():
+    s = polars.Series("Q1", ["A", "B"])
+    q = Variable(s)
+    q.id = "Q1@1"
+
+    assert q.id == "Q1@1"
+
+
 def test_variable_replace():
     s = polars.Series("Q1", ["A", "B"])
     q = Variable(s)

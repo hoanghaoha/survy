@@ -8,7 +8,8 @@ from survy.utils.spss import ctables
 
 
 class Survey:
-    """Container for a collection of survey variables.
+    """
+    Container for a collection of survey variables.
 
     This class provides utilities to access variables, transform survey data
     into tabular format, export to various file formats, and manage metadata.
@@ -26,7 +27,8 @@ class Survey:
         self.variables = variables
 
     def __str__(self) -> str:
-        """Return a human-readable summary of the survey.
+        """
+        Return a human-readable summary of the survey.
 
         Returns:
             str: A string listing the number of variables and each variable's
@@ -45,7 +47,8 @@ class Survey:
         return "\n".join(lines)
 
     def __getitem__(self, variable_id: str):
-        """Retrieve a Variable by its ID.
+        """
+        Retrieve a Variable by its ID.
 
         Args:
             variable_id (str): The ID of the variable to retrieve.
@@ -60,14 +63,169 @@ class Survey:
             >>> variable = survey["Q1"]
             >>> print(variable.label)
         """
-        return {variable.id: variable for variable in self.variables}[variable_id]
+        for var in self.variables:
+            if var.id == variable_id:
+                return var
+        raise KeyError(f"Variable not found: {variable_id}")
+
+    def add(self, variable: Variable | polars.Series):
+        """
+        Add a Variable to the survey.
+
+        Args:
+            variable (Variable | polars.Series): The variable to add. If a
+                ``polars.Series`` is given, it is wrapped in a ``Variable``
+                automatically.
+
+        Notes:
+            If the variable's ID already exists in the survey, a numeric suffix
+            is appended (e.g. ``"Q1#1"``, ``"Q1#2"``) until the ID is unique.
+
+        Examples:
+            >>> survey.add(q4)
+            >>> survey.add(polars.Series("Q4", [1, 2, 3]))
+        """
+        if isinstance(variable, polars.Series):
+            variable = Variable(series=variable)
+
+        existing_ids = {var.id for var in self.variables}
+        if variable.id in existing_ids:
+            base_id = variable.id
+            counter = 1
+            while f"{base_id}#{counter}" in existing_ids:
+                counter += 1
+            variable.id = f"{base_id}#{counter}"
+
+        self.variables.append(variable)
+
+    def drop(self, id: str):
+        """
+        Remove a variable from the survey.
+
+        Args:
+            id (str): ID of the variable to remove.
+
+        Returns:
+            None
+
+        Raises:
+            Nothing: Variables not found are silently ignored.
+
+        Examples:
+            >>> survey.drop("Q1")
+        """
+        self.variables = [var for var in self.variables if var.id != id]
+
+    def sort(self, key=lambda var: var.id, reverse: bool = False):
+        """
+        Sort variables in-place.
+
+        Args:
+            key (callable, optional): A function applied to each variable for
+                sorting. Defaults to sorting by variable ID.
+            reverse (bool, optional): If ``True``, sort in descending order.
+                Defaults to ``False``.
+
+        Returns:
+            None
+
+        Examples:
+            >>> survey.sort()
+            >>> survey.sort(key=lambda var: var.label)
+            >>> survey.sort(reverse=True)
+        """
+        self.variables = sorted(self.variables, key=key, reverse=reverse)
+
+    def update(self, metadata: list[dict[str, Any]]):
+        """Update variable metadata from a list of dictionaries.
+
+        Args:
+            metadata (list[dict[str, Any]]): List of metadata dictionaries.
+                Each dictionary should include:
+                - "id": variable ID
+                - "label" (optional): New label for the variable
+                - "value_indices" (optional): Mapping of options to indices
+
+        Returns:
+            None
+
+        Raises:
+            Warning: If a metadata ID does not exist in the survey.
+
+        Notes:
+            - Missing optional fields default to empty values.
+            - Unknown variable IDs trigger a warning and are skipped.
+            - NUMBER variable will not be updated for value_indices
+
+        Examples:
+            >>> metadata = [
+            ...     {"id": "Q1", "label": "Updated label"},
+            ...     {"id": "Q2", "value_indices": {"Yes": 1, "No": 0}},
+            ... ]
+            >>> survey.update(metadata)
+        """
+        for info in metadata:
+            var_id = info.get("id")
+
+            if not var_id:
+                warnings.warn("Metadata entry missing 'id', skipping.")
+                continue
+
+            if var_id not in [q.id for q in self.variables]:
+                warnings.warn(f"Id is not in survey: {var_id}")
+                continue
+
+            variable = self[var_id]
+            variable.label = info.get("label", "")
+            if not variable.series.dtype.is_numeric():
+                variable.value_indices = info.get("value_indices", {})
+
+    def filter(self, variable_id: str, values: Any | list[Any]) -> "Survey":
+        """
+        Filter the survey by matching values in a variable's series.
+
+        Args:
+            variable_id (str): ID of the variable to filter by.
+            values (Any | list[Any]): Value or list of values to keep.
+
+        Returns:
+            Survey: A new Survey with only the matching rows.
+
+        Raises:
+            KeyError: If the variable ID does not exist.
+
+        Examples:
+            >>> survey.filter("Q1", "Male")
+            >>> survey.filter("Q1", ["Male", "Female"])
+            >>> survey.filter("Q2", [1, 2])
+            >>> survey.filter("Q3", ["a", "b"])  # multiselect
+        """
+        if not isinstance(values, list):
+            values = [values]
+
+        variable = self[variable_id]
+        series = variable.series
+
+        if series.dtype == polars.List:
+            mask = series.list.eval(polars.element().is_in(values)).list.any()
+        else:
+            mask = series.is_in(values)
+
+        indices = mask.arg_true().to_list()
+
+        filtered_variables = [
+            Variable(series=var.series[indices]) for var in self.variables
+        ]
+
+        return Survey(variables=filtered_variables)
 
     def get_df(
         self,
         select_dtype: Literal["number", "text"] = "text",
         multiselect_dtype: Literal["number", "text", "compact"] = "compact",
     ) -> polars.DataFrame:
-        """Convert the survey into a Polars DataFrame.
+        """
+        Convert the survey into a Polars DataFrame.
 
         Each variable is converted into a column (or columns) and concatenated
         horizontally into a single DataFrame.
@@ -103,7 +261,8 @@ class Survey:
 
     @property
     def sps(self) -> str:
-        """Generate SPSS syntax for the survey.
+        """
+        Generate SPSS syntax for the survey.
 
         Returns:
             str: A string containing SPSS syntax commands for all variables.
@@ -127,46 +286,6 @@ class Survey:
         )
 
         return "\n".join(commands)
-
-    def update(self, metadata: list[dict[str, Any]]):
-        """Update variable metadata from a list of dictionaries.
-
-        Args:
-            metadata (list[dict[str, Any]]): List of metadata dictionaries.
-                Each dictionary should include:
-                - "id": variable ID
-                - "label" (optional): New label for the variable
-                - "value_indices" (optional): Mapping of options to indices
-
-        Returns:
-            None
-
-        Raises:
-            Warning: If a metadata ID does not exist in the survey.
-
-        Notes:
-            - Missing optional fields default to empty values.
-            - Unknown variable IDs trigger a warning and are skipped.
-            - NUMBER variable will not be updated for value_indices
-
-        Examples:
-            >>> metadata = [
-            ...     {"id": "Q1", "label": "Updated label"},
-            ...     {"id": "Q2", "value_indices": {"Yes": 1, "No": 0}},
-            ... ]
-            >>> survey.update(metadata)
-        """
-        for info in metadata:
-            id = info["id"]
-
-            if id not in [q.id for q in self.variables]:
-                warnings.warn(f"Id is not in survey: {id}")
-                continue
-
-            variable = self[info["id"]]
-            variable.label = info.get("label", "")
-            if not variable.series.dtype.is_numeric():
-                variable.value_indices = info.get("value_indices", {})
 
     def to_json(
         self, path: str | Path, name: str = "survey", encoding: str = "utf-8"

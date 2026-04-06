@@ -52,6 +52,16 @@ class Variable:
         """
         return self.series.name
 
+    @id.setter
+    def id(self, new_id: str):
+        """
+        Set a id for the variable.
+
+        Args:
+            new_id (str): New ID.
+        """
+        self.series = self.series.rename(new_id)
+
     @property
     def label(self) -> str:
         """
