@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.4] - 2026-04-06
+
+### Added
+
+* __str__ representation for Survey
+* Handle functions for Survey (add, drop, filter, sort)
+* id.setter for Variable
+
+---
+
 ## [0.1.3] - 2026-04-06
 
 ### Fixed
