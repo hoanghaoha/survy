@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "survy"
-version = "0.1.1"
+version = "0.1.2"
 description = "Process, transform and analyze survey-format data with clean and simple API."
 readme = "README.md"
 requires-python = ">=3.12"

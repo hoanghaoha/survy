@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.2] - 2026-04-06
+
+### Added
+
+* Variable .__str__() and .replace()
+* auto_detect when read_polars, read_csv, read_excel
+
+### Fixed
+
+* SPSS string error when export
+* Export path/ files name
+
+---
+
 ## [0.1.1] - 2026-04-05
 
 ### Fixed
