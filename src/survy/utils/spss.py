@@ -4,6 +4,10 @@ from survy.variable.variable import VarType
 from survy.separators import MULTISELECT
 
 
+def _clean_spss_str(s: str):
+    return s.replace("'", "").replace('"', "")[:120]
+
+
 def variable_labels(
     qtype: str, id: str, label: str, option_indices: dict[str, int] = {}
 ) -> str:
@@ -38,14 +42,14 @@ def variable_labels(
     """
     match qtype:
         case VarType.SELECT | VarType.NUMBER:
-            return f"VARIABLE LABELS {id} '{label}'."
+            return f"VARIABLE LABELS {id} '{_clean_spss_str(label)}'."
         case VarType.MULTISELECT:
             if not option_indices:
                 return ""
 
             return "\n".join(
                 [
-                    f"VARIABLE LABELS {id}{MULTISELECT}{i} '[{op}] {label}'."
+                    f"VARIABLE LABELS {id}{MULTISELECT}{i} '{_clean_spss_str(f'[{op}] {label}')}'."
                     for op, i in option_indices.items()
                 ]
             )
@@ -135,12 +139,14 @@ def value_labels(qtype: str, id: str, option_indices: dict[str, int]) -> str:
         case VarType.MULTISELECT:
             return "\n".join(
                 [
-                    f"VALUE LABELS {id}{MULTISELECT}{i} 1 '{op}'."
+                    f"VALUE LABELS {id}{MULTISELECT}{i} 1 '{op.replace("'", '').replace('"', '')[:120]}'."
                     for op, i in option_indices.items()
                 ]
             )
         case _:
-            op_map_str = "\n".join([f"{i} '{op}'" for op, i in option_indices.items()])
+            op_map_str = "\n".join(
+                [f"{i} '{_clean_spss_str(op)}'" for op, i in option_indices.items()]
+            )
             return f"VALUE LABELS {id} {op_map_str}."
 
 
@@ -177,7 +183,7 @@ def mrset(id: str, label: str, option_indices: dict[str, int]) -> str:
         return ""
 
     return f"""MRSETS /MDGROUP NAME=${id}
-LABEL='{label}'
+LABEL='{_clean_spss_str(label)}'
 CATEGORYLABELS=COUNTEDVALUES VALUE=1
 VARIABLES={" ".join([f"{id}{MULTISELECT}{i}" for _, i in option_indices.items()])}
 /DISPLAY NAME=[${id}]."""
