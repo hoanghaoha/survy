@@ -9,19 +9,13 @@ from survy.variable._utils import VarType
 from survy.variable.variable import Variable
 
 CatAggFunc: TypeAlias = Literal["count", "percent"]
-"""
-Supported categorical crosstab modes.
-"""
+"""Supported categorical crosstab modes."""
 
 NumAggFunc: TypeAlias = Literal["mean", "min", "max", "median", "sum", "var", "std"]
-"""
-Supported numeric aggregation functions.
-"""
+"""Supported numeric aggregation functions."""
 
 AggFunc: TypeAlias = Union[CatAggFunc, NumAggFunc, Callable]
-"""
-General aggregation type accepted by crosstab operations.
-"""
+"""General aggregation type accepted by crosstab operations."""
 
 
 def _get_filter(filter: Variable | None, len_: int):
@@ -54,29 +48,22 @@ def _get_var_df(variable: Variable, as_num: bool) -> polars.DataFrame:
 
 
 class CrosstabExecutor:
-    """
-    Internal executor for computing cross-tabulations between survey variables.
+    """Internal executor for computing cross-tabulations between survey variables.
 
-    This class orchestrates the preparation, joining, and aggregation of
-    `Variable` objects into crosstab tables. It supports categorical counts,
-    percentage distributions, and numeric aggregations, optionally segmented
-    by a filter variable.
+    Orchestrates the preparation, joining, and aggregation of Variable objects
+    into crosstab tables. Supports categorical counts, percentage distributions,
+    and numeric aggregations, optionally segmented by a filter variable.
 
-    Parameters
-    ----------
-    column : Variable
-        Variable used as the column dimension in the crosstab.
-    row : Variable
-        Variable used as the row dimension in the crosstab.
-    filter : Variable | None
-        Optional variable used to segment the data. If None, a synthetic
-        "Total" filter is applied.
+    Args:
+        column: Variable used as the column dimension in the crosstab.
+        row: Variable used as the row dimension in the crosstab.
+        filter: Optional variable used to segment the data. If None, a
+            synthetic "Total" filter is applied.
 
-    Notes
-    -----
-    - All variables must have the same length (number of respondents).
-    - MULTISELECT variables are automatically exploded into long format.
-    - Aggregations are performed using pandas and converted back to Polars.
+    Notes:
+        - All variables must have the same length (number of respondents).
+        - MULTISELECT variables are automatically exploded into long format.
+        - Aggregations are performed using pandas and converted back to Polars.
     """
 
     def __init__(
@@ -89,31 +76,22 @@ class CrosstabExecutor:
         self.filter = _get_filter(filter, column.len)
 
     def get_df(self, row_as_num: bool):
-        """
-        Construct a merged DataFrame for crosstab computation.
+        """Construct a merged DataFrame for crosstab computation.
 
-        This method prepares and joins the column, row, and filter variables
-        into a single Polars DataFrame using a common respondent ID.
+        Prepares and joins the column, row, and filter variables into a single
+        Polars DataFrame using a common respondent ID.
 
-        Parameters
-        ----------
-        row_as_num : bool
-            Whether to convert the row variable to numeric representation.
-            Required for numeric aggregations.
+        Args:
+            row_as_num: Whether to convert the row variable to numeric
+                representation. Required for numeric aggregations.
 
-        Returns
-        -------
-        polars.DataFrame
-            A DataFrame containing:
-            - "ID" column (row index)
-            - column variable
-            - row variable
-            - filter variable
+        Returns:
+            A DataFrame containing an "ID" column (row index), the column
+            variable, the row variable, and the filter variable.
 
-        Notes
-        -----
-        - MULTISELECT variables are exploded before joining.
-        - Joins are performed as left joins on "ID".
+        Notes:
+            - MULTISELECT variables are exploded before joining.
+            - Joins are performed as left joins on "ID".
         """
         column_df = _get_var_df(self.column, as_num=False)
         row_df = _get_var_df(self.row, as_num=row_as_num)
@@ -127,25 +105,18 @@ class CrosstabExecutor:
         return merged_df
 
     def crosstab_count(self, filter_by: str) -> polars.DataFrame:
-        """
-        Compute a count-based crosstab for a given filter value.
+        """Compute a count-based crosstab for a given filter value.
 
         Counts the number of unique respondents (based on "ID") for each
         combination of row and column categories.
 
-        Parameters
-        ----------
-        filter_by : str
-            Filter value used to subset the data.
+        Args:
+            filter_by: Filter value used to subset the data.
 
-        Returns
-        -------
-        polars.DataFrame
-            Crosstab table with:
-            - rows representing row variable categories
-            - columns representing column variable categories
-            - integer counts
-            - "Total" margins for rows and columns
+        Returns:
+            Crosstab table with rows representing row variable categories,
+            columns representing column variable categories, integer counts,
+            and "Total" margins for rows and columns.
         """
         df = self.get_df(row_as_num=False).filter(
             polars.col(self.filter.id) == filter_by
@@ -171,29 +142,21 @@ class CrosstabExecutor:
         return polars.DataFrame(records).cast({cs.numeric(): polars.Int64})
 
     def crosstab_percent(self, filter_by: str) -> polars.DataFrame:
-        """
-        Compute a column-normalized percentage crosstab.
+        """Compute a column-normalized percentage crosstab.
 
         Calculates the proportion of respondents in each row category
         within each column category.
 
-        Parameters
-        ----------
-        filter_by : str
-            Filter value used to subset the data.
+        Args:
+            filter_by: Filter value used to subset the data.
 
-        Returns
-        -------
-        polars.DataFrame
-            Crosstab table with:
-            - rows representing row variable categories
-            - columns representing column variable categories
-            - float percentages normalized by column
-            - "Total" margins
+        Returns:
+            Crosstab table with rows representing row variable categories,
+            columns representing column variable categories, float percentages
+            normalized by column, and "Total" margins.
 
-        Notes
-        -----
-        - Percentages are normalized column-wise (each column sums to 1).
+        Notes:
+            Percentages are normalized column-wise (each column sums to 1).
         """
         df = self.get_df(row_as_num=False).filter(
             polars.col(self.filter.id) == filter_by
@@ -220,34 +183,24 @@ class CrosstabExecutor:
         return polars.DataFrame(records).cast({cs.numeric(): polars.Float16})
 
     def crosstab_number(self, filter_by: str, aggfunc: AggFunc) -> polars.DataFrame:
-        """
-        Compute a numeric aggregation crosstab.
+        """Compute a numeric aggregation crosstab.
 
         Applies a numeric aggregation function to the row variable grouped
         by the column variable.
 
-        Parameters
-        ----------
-        filter_by : str
-            Filter value used to subset the data.
-        aggfunc : AggFunc
-            Aggregation function to apply. Can be:
-            - A predefined numeric aggregation string (e.g. "mean", "min", "max",
-            "median", "sum", "var", "std")
-            - A callable compatible with pandas `pivot_table`
+        Args:
+            filter_by: Filter value used to subset the data.
+            aggfunc: Aggregation function to apply. Can be a predefined numeric
+                aggregation string (e.g. "mean", "min", "max", "median", "sum",
+                "var", "std") or a callable compatible with pandas pivot_table.
 
-        Returns
-        -------
-        polars.DataFrame
-            Aggregated crosstab table with:
-            - rows representing aggregation results
-            - columns representing column variable categories
-            - "Total" margin
+        Returns:
+            Aggregated crosstab table with rows representing aggregation results,
+            columns representing column variable categories, and a "Total" margin.
 
-        Notes
-        -----
-        - The row variable is converted to numeric before aggregation.
-        - Internally uses pandas `pivot_table`.
+        Notes:
+            - The row variable is converted to numeric before aggregation.
+            - Internally uses pandas pivot_table.
         """
         df = self.get_df(row_as_num=True).filter(
             polars.col(self.filter.id) == filter_by
@@ -269,30 +222,20 @@ class CrosstabExecutor:
         return polars.DataFrame(records)
 
     def run(self, aggfunc: AggFunc) -> dict[str, polars.DataFrame]:
-        """
-        Execute crosstab computation for all filter segments.
+        """Execute crosstab computation for all filter segments.
 
-        Dispatches to the appropriate crosstab method based on the
-        aggregation function and computes results for each filter value.
+        Dispatches to the appropriate crosstab method based on the aggregation
+        function and computes results for each filter value.
 
-        Parameters
-        ----------
-        aggfunc : AggFunc
-            Aggregation mode or function:
-            - "count"   : frequency counts
-            - "percent" : column-wise percentages
-            - numeric aggregation (e.g. "mean", "median", etc.)
-            - callable  : custom aggregation function
+        Args:
+            aggfunc: Aggregation mode or function. Use "count" for frequency
+                counts, "percent" for column-wise percentages, a numeric string
+                (e.g. "mean", "median") for numeric aggregation, or a callable
+                for custom aggregation.
 
-        Returns
-        -------
-        dict[str, polars.DataFrame]
-            Mapping of filter values to crosstab DataFrames.
-
-        Notes
-        -----
-        - Each filter value produces a separate crosstab.
-        - If no filter is provided, a single "Total" key is returned.
+        Returns:
+            A dictionary mapping filter values to crosstab DataFrames. If no
+            filter is provided, returns a single "Total" key.
         """
         results = {}
         for value in self.filter.value_indices.keys():
@@ -304,3 +247,4 @@ class CrosstabExecutor:
                 results[value] = self.crosstab_number(value, aggfunc)
 
         return results
+
