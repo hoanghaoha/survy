@@ -83,14 +83,8 @@ class SelectStrategy(BaseStrategy):
         Returns:
             str: Combined SPSS syntax string.
 
-        Notes:
-            - Label is sanitized to remove quotes.
-            - Label must be shorter than 250 characters.
         """
         id = self.series.name
-
-        assert len(label) < 250
-        label = label.replace("'", "").replace('"', "")
 
         var_label_str = variable_labels(VarType.SELECT, id, label, self.value_indices)
         value_label_str = value_labels(VarType.SELECT, id, self.value_indices)

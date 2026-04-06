@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.3] - 2026-04-06
+
+### Fixed
+
+* Only handle label string for spss in utils.spss
+
+---
+
 ## [0.1.2] - 2026-04-06
 
 ### Added
