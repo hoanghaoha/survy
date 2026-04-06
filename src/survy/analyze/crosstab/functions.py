@@ -1,5 +1,8 @@
+from typing import Iterable
+import polars
 from survy.analyze.crosstab._utils import AggFunc, CrosstabExecutor
 from survy.variable.variable import Variable
+from statsmodels.stats.proportion import proportions_ztest
 
 
 def crosstab(
@@ -7,7 +10,7 @@ def crosstab(
     row: Variable,
     filter: Variable | None = None,
     aggfunc: AggFunc = "count",
-):
+) -> dict[str, polars.DataFrame]:
     """Generate cross-tabulation tables between two survey variables.
 
     Computes contingency tables (crosstabs) between a column variable and a
@@ -53,3 +56,89 @@ def crosstab(
     """
     crosstab_executor = CrosstabExecutor(column, row, filter)
     return crosstab_executor.run(aggfunc)
+
+
+def sig_test_proportion(
+    crosstab: dict[str, polars.DataFrame], sig_level: float
+) -> dict[str, polars.DataFrame]:
+    """Perform column-wise proportion significance tests on count crosstabs.
+
+    For each cell in the crosstab, tests whether its proportion differs
+    significantly from every other column's proportion in the same row.
+    Significant differences are indicated by appending the letter label
+    of the compared column (e.g. "A", "B", "AB").
+
+    Args:
+        crosstab: A dictionary mapping filter values to count-based contingency
+            tables (as returned by crosstab_count). Each DataFrame is expected
+            to have a category label column as the first column, count columns
+            in the middle, and a "Total" margin as the last row and column.
+        sig_level: Significance level threshold for the z-test (e.g. 0.05).
+
+    Returns:
+        A dictionary with the same keys as the input. Each value is a DataFrame
+        where count values are replaced by strings indicating which columns
+        differ significantly (e.g. "AB" means this column is significantly
+        different from columns A and B). The first column (category labels)
+        is preserved. Column headers are suffixed with their letter label
+        (e.g. "Gender (A)", "Age (B)").
+
+    Example:
+        >>> results = sig_test_proportion(crosstab_result, sig_level=0.05)
+        >>> results["Total"]
+        shape: (3, 4)
+        ┌──────────┬────────────┬────────────┬────────────┐
+        │ category ┆ Col1 (A)   ┆ Col2 (B)   ┆ Col3 (C)   │
+        │ ---      ┆ ---        ┆ ---        ┆ ---        │
+        │ str      ┆ str        ┆ str        ┆ str        │
+        ╞══════════╪════════════╪════════════╪════════════╡
+        │ Cat A    ┆ "B"        ┆ ""         ┆ "A"        │
+        │ Cat B    ┆ ""         ┆ "C"        ┆ "B"        │
+        │ Cat C    ┆ ""         ┆ ""         ┆ ""         │
+        └──────────┴────────────┴────────────┴────────────┘
+    """
+
+    def _is_sig_diff(count: Iterable, nobs: Iterable):
+        """Return True if two proportions differ significantly."""
+        if any(n == 0 for n in nobs) or any(c == 0 for c in count):
+            return False
+        _, p = proportions_ztest(count, nobs)
+        return p < sig_level
+
+    def _col_label(n: int) -> str:
+        """Convert a zero-based index to an Excel-style column label (A, B, ..., Z, AA, ...)."""
+        label = ""
+        while n >= 0:
+            label = chr(n % 26 + 65) + label
+            n = n // 26 - 1
+        return label
+
+    def _build_sig_labels(df: polars.DataFrame) -> polars.DataFrame:
+        """Replace each cell with letters of columns that differ significantly."""
+        results = []
+        for row in df.iter_rows():
+            row_result = []
+            for i, val in enumerate(row):
+                sig_cols = "".join(
+                    _col_label(j)
+                    for j, other in enumerate(row)
+                    if i != j
+                    and _is_sig_diff([val, other], [col_totals[i], col_totals[j]])
+                )
+                row_result.append(sig_cols)
+            results.append(row_result)
+        return polars.DataFrame(results, schema=df.columns, orient="row")
+
+    results = {}
+    for key, df in crosstab.items():
+        cat_col = df[:, 0][:-1]  # category label column, drop Total row
+        counts_df = df[:-1, 1:-1]  # inner counts, drop Total row and margins
+        col_totals = df.row(-1)[1:-1]  # Total row values, excluding label and margin
+
+        sig_df = _build_sig_labels(counts_df)
+        sig_df.columns = [
+            f"{col} ({_col_label(i)})" for i, col in enumerate(sig_df.columns)
+        ]
+        results[key] = polars.concat([cat_col.to_frame(), sig_df], how="horizontal")
+
+    return results
