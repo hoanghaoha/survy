@@ -1,19 +1,19 @@
 import pytest
-import polars as pl
+import polars
 import numpy as np
 
-from survy.analyze.crosstab.functions import crosstab
+from survy.analyze.crosstab.functions import crosstab, sig_test_proportion
 from survy.variable.variable import Variable
 
 
 @pytest.fixture
 def sample_data():
-    v_select = Variable(pl.Series("Q1", ["a", "b", "a", "a", "b", "a"]))
+    v_select = Variable(polars.Series("Q1", ["a", "b", "a", "a", "b", "a"]))
 
-    v_numeric = Variable(pl.Series("Q2", [20, 30, 40, 23, 21, 304]))
+    v_numeric = Variable(polars.Series("Q2", [20, 30, 40, 23, 21, 304]))
 
     v_multi = Variable(
-        pl.Series(
+        polars.Series(
             "Q3",
             [
                 ["d", "e"],
@@ -26,7 +26,7 @@ def sample_data():
         )
     )
 
-    v_filter = Variable(pl.Series("F", ["X", "X", "Y", "Y", "X", "Y"]))
+    v_filter = Variable(polars.Series("F", ["X", "X", "Y", "Y", "X", "Y"]))
 
     return v_select, v_numeric, v_multi, v_filter
 
@@ -39,7 +39,7 @@ def test_count_basic(sample_data):
     assert "Total" in result
     df = result["Total"]
 
-    assert isinstance(df, pl.DataFrame)
+    assert isinstance(df, polars.DataFrame)
     assert df.height > 0
 
 
@@ -50,7 +50,7 @@ def test_percent_basic(sample_data):
 
     df = result["Total"]
 
-    assert all(dtype.is_float() for dtype in df.dtypes if dtype != pl.Utf8)
+    assert all(dtype.is_float() for dtype in df.dtypes if dtype != polars.Utf8)
 
 
 def test_numeric_mean(sample_data):
@@ -60,7 +60,7 @@ def test_numeric_mean(sample_data):
 
     df = result["Total"]
 
-    assert isinstance(df, pl.DataFrame)
+    assert isinstance(df, polars.DataFrame)
     assert df.height > 0
 
 
@@ -72,7 +72,7 @@ def test_all_numeric_aggs(sample_data, agg):
 
     df = result["Total"]
 
-    assert isinstance(df, pl.DataFrame)
+    assert isinstance(df, polars.DataFrame)
     assert df.height > 0
 
 
@@ -83,7 +83,7 @@ def test_callable_agg(sample_data):
 
     df = result["Total"]
 
-    assert isinstance(df, pl.DataFrame)
+    assert isinstance(df, polars.DataFrame)
 
 
 def test_select_vs_multiselect(sample_data):
@@ -133,8 +133,8 @@ def test_has_total_column(sample_data):
 
 
 def test_single_value_variable():
-    v1 = Variable(pl.Series("Q1", ["a", "a", "a"]))
-    v2 = Variable(pl.Series("Q2", [1, 1, 1]))
+    v1 = Variable(polars.Series("Q1", ["a", "a", "a"]))
+    v2 = Variable(polars.Series("Q2", [1, 1, 1]))
 
     result = crosstab(v1, v2)
 
@@ -142,9 +142,9 @@ def test_single_value_variable():
 
 
 def test_empty_after_filter():
-    v1 = Variable(pl.Series("Q1", ["a", "b"]))
-    v2 = Variable(pl.Series("Q2", [1, 2]))
-    vf = Variable(pl.Series("F", ["X", "X"]))
+    v1 = Variable(polars.Series("Q1", ["a", "b"]))
+    v2 = Variable(polars.Series("Q2", [1, 2]))
+    vf = Variable(polars.Series("F", ["X", "X"]))
 
     result = crosstab(v1, v2, filter=vf)
 
@@ -152,8 +152,8 @@ def test_empty_after_filter():
 
 
 def test_length_mismatch():
-    v1 = Variable(pl.Series("Q1", ["a", "b"]))
-    v2 = Variable(pl.Series("Q2", [1]))
+    v1 = Variable(polars.Series("Q1", ["a", "b"]))
+    v2 = Variable(polars.Series("Q2", [1]))
 
     with pytest.raises(AssertionError):
         crosstab(v1, v2)
@@ -167,6 +167,29 @@ def test_count_sum_consistency(sample_data):
 
     df = crosstab(v1, v3)["Total"]
 
-    total_row = df.filter(pl.col(df.columns[0]) == "Total")
+    total_row = df.filter(polars.col(df.columns[0]) == "Total")
 
     assert total_row.height == 1
+
+
+def test_sig_test_proportion(sample_data):
+    v1, _, v3, _ = sample_data
+
+    crosstab_results = crosstab(v1, v3, aggfunc="count")
+    sig_test_results = sig_test_proportion(crosstab_results, 0.05)
+    assert "Total" in sig_test_results
+    assert isinstance(sig_test_results["Total"], polars.DataFrame)
+    assert sig_test_results["Total"].height > 0
+    assert sig_test_results["Total"].width > 0
+
+
+def test_sig_test_proportion_filtered(sample_data):
+    v1, _, v3, vf = sample_data
+
+    crosstab_results = crosstab(v1, v3, vf, aggfunc="count")
+    sig_test_results = sig_test_proportion(crosstab_results, 0.05)
+    for value in vf.value_indices.keys():
+        assert value in sig_test_results
+        assert isinstance(sig_test_results[value], polars.DataFrame)
+        assert sig_test_results[value].height > 0
+        assert sig_test_results[value].width > 0

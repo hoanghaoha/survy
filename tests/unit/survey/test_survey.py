@@ -69,7 +69,6 @@ def test_survey_add_exist_varible_id(
     survey = Survey(variables=[select_variable, multiselect_variable, number_variable])
     series = polars.Series("Q1", [["x", "z"], ["x", "y", "z"], ["y", "z"], ["z"]])
     survey.add(Variable(series))
-    print(survey)
     assert survey["Q1#1"]
 
 
