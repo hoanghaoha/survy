@@ -176,20 +176,18 @@ def test_sig_test_proportion(sample_data):
     v1, _, v3, _ = sample_data
 
     crosstab_results = crosstab(v1, v3, aggfunc="count")
-    sig_test_results = sig_test_proportion(crosstab_results, 0.05)
-    assert "Total" in sig_test_results
-    assert isinstance(sig_test_results["Total"], polars.DataFrame)
-    assert sig_test_results["Total"].height > 0
-    assert sig_test_results["Total"].width > 0
+    sig_test_result = sig_test_proportion(crosstab_results["Total"], 0.05)
+    assert isinstance(sig_test_result, polars.DataFrame)
+    assert sig_test_result.height > 0
+    assert sig_test_result.width > 0
 
 
 def test_sig_test_proportion_filtered(sample_data):
     v1, _, v3, vf = sample_data
 
     crosstab_results = crosstab(v1, v3, vf, aggfunc="count")
-    sig_test_results = sig_test_proportion(crosstab_results, 0.05)
-    for value in vf.value_indices.keys():
-        assert value in sig_test_results
-        assert isinstance(sig_test_results[value], polars.DataFrame)
-        assert sig_test_results[value].height > 0
-        assert sig_test_results[value].width > 0
+    for df in crosstab_results.values():
+        sig_test_result = sig_test_proportion(df, 0.05)
+        assert isinstance(sig_test_result, polars.DataFrame)
+        assert sig_test_result.height > 0
+        assert sig_test_result.width > 0
