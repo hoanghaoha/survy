@@ -11,7 +11,4 @@ df = polars.DataFrame(
         "animal_2": ["Dog", "Dog", ""],
     }
 )
-
 survey = survy.read_polars(df, auto_detect=True)
-print("\n")
-print(survey.sps)

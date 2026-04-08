@@ -278,7 +278,16 @@ class Variable:
                 "Men"
         ]
         """
-        self.series = self.series.replace(mapping)
+        if self.vtype != VarType.MULTISELECT:
+            self.series = self.series.replace(mapping)
+        else:
+            new_series = polars.Series(
+                self.id,
+                [[mapping.get(d, d) for d in item] for item in self.series.to_list()],
+            )
+            self.series = new_series
+
+        self.value_indices = extract_mapping(self.series.to_list())
 
     def to_dict(self) -> dict:
         """

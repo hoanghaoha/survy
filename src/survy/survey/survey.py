@@ -691,3 +691,98 @@ class Survey:
         from survy.io.csv import to_csv
 
         to_csv(self, path, name, compact, compact_separator)
+
+    def to_excel(
+        self,
+        path: str | Path,
+        name: str = "survey",
+        compact: bool = False,
+        compact_separator: str = ";",
+    ):
+        """Export the survey to Excel files.
+
+        This is a wrapper around ``survy.io.excel.to_excel`` and writes:
+        - Survey data
+        - Variable metadata
+        - Option mappings
+
+        Args:
+            path (str | pathlib.Path): Output directory.
+            name (str, optional): Base name for output files. Defaults to "survey".
+            compact (bool, optional): Whether to compact multi-select responses.
+                Defaults to False.
+            compact_separator (str, optional): Separator for compacted values.
+                Defaults to ";".
+
+        Returns:
+            None
+
+        Examples:
+
+            >>> df = polars.DataFrame(
+                {
+                    "gender": ["Male", "Female", "Male"],
+                    "yob": [2000, 1999, 1998],
+                    "hobby": ["Sport;Book", "Sport;Movie", "Movie"],
+                    "animal_1": ["Cat", "", "Cat"],
+                    "animal_2": ["Dog", "Dog", ""],
+                }
+            )
+
+            >>> survey = read_polars(df, auto_detect=True)
+
+            >>> print(survey.get_df())
+            shape: (3, 4)
+            ┌────────┬──────┬────────────────────┬────────────────┐
+            │ gender ┆ yob  ┆ hobby              ┆ animal         │
+            │ ---    ┆ ---  ┆ ---                ┆ ---            │
+            │ str    ┆ i64  ┆ list[str]          ┆ list[str]      │
+            ╞════════╪══════╪════════════════════╪════════════════╡
+            │ Male   ┆ 2000 ┆ ["Book", "Sport"]  ┆ ["Cat", "Dog"] │
+            │ Female ┆ 1999 ┆ ["Movie", "Sport"] ┆ ["Dog"]        │
+            │ Male   ┆ 1998 ┆ ["Movie"]          ┆ ["Cat"]        │
+            └────────┴──────┴────────────────────┴────────────────┘
+
+            Export in compact mode:
+            >>> survey.to_excel(path=".", name="survey", compact=True)
+
+            Output: `survey_data.xlsx`
+            ┌────────┬──────┬────────────────────┬────────────────┐
+            │ gender ┆ yob  ┆ hobby              ┆ animal         │
+            ╞════════╪══════╪════════════════════╪════════════════╡
+            │ Male   ┆ 2000 ┆ Book;Sport         ┆ Cat;Dog        │
+            │ Female ┆ 1999 ┆ Movie;Sport        ┆ Dog            │
+            │ Male   ┆ 1998 ┆ Movie              ┆ Cat            │
+            └────────┴──────┴────────────────────┴────────────────┘
+
+            Export in non-compact mode:
+            >>> survey.to_excel(path=".", name="survey", compact=False)
+
+            Output: `survey_data.xlsx`
+            ┌────────┬──────┬─────────┬─────────┬─────────┬──────────┬──────────┐
+            │ gender ┆ yob  ┆ hobby_1 ┆ hobby_2 ┆ hobby_3 ┆ animal_1 ┆ animal_2 │
+            ╞════════╪══════╪═════════╪═════════╪═════════╪══════════╪══════════╡
+            │ Male   ┆ 2000 ┆ Book    ┆ null    ┆ Sport   ┆ Cat      ┆ Dog      │
+            │ Female ┆ 1999 ┆ null    ┆ Movie   ┆ Sport   ┆ null     ┆ Dog      │
+            │ Male   ┆ 1998 ┆ null    ┆ Movie   ┆ null    ┆ Cat      ┆ null     │
+            └────────┴──────┴─────────┴─────────┴─────────┴──────────┴──────────┘
+
+            Variables metadata (`survey_variables_info.xlsx`):
+                gender,SINGLE,gender
+                yob,NUMBER,yob
+                hobby,MULTISELECT,hobby
+                animal,MULTISELECT,animal
+
+
+            Values mapping (`survey_values_info.xlsx`):
+                gender,Male,1
+                gender,Female,2
+                hobby,Book,1
+                hobby,Movie,2
+                hobby,Sport,3
+                animal,Cat,1
+                animal,Dog,2
+        """
+        from survy.io.excel import to_excel
+
+        to_excel(self, path, name, compact, compact_separator)
