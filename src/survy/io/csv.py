@@ -15,27 +15,84 @@ def read_csv(
     name_pattern: str = "id(_multi)?",
 ) -> Survey:
     """
-    Read a CSV file and return a Survey object.
+    Read a CSV file and convert it into a Survey object.
 
-    This is the main entry point for reading survey data.
+    This is a convenience wrapper around `read_polars`, allowing users to
+    directly load survey data from a CSV file.
 
     Args:
         path (str | Path):
-            Path to the CSV file.
+            Path to the `.csv` file.
+
         compact_ids (list[str] | None):
-            IDs of variables using compact multi-select encoding.
-        compact_separator (str):
-            Separator for compact multi-select values.
-        auto_detect (bool):
-            Auto parse multi-select if data have compact_separator.
-        name_pattern (str):
-            Pattern for parsing column names into id/loop/multi components.
+            Variable IDs that should be interpreted as compact multi-select
+            (e.g. "A;B;C").
+
+        compact_separator (str, default=";"):
+            Delimiter used for compact multi-select values.
+
+        auto_detect (bool, default=False):
+            If True, automatically detect compact multi-select columns based
+            on the presence of the separator in values.
+
+        name_pattern (str, default="id(_multi)?"):
+            Pattern used to parse column names into:
+            - base variable id
+            - optional multi suffix
 
     Returns:
-        Survey: Parsed survey object.
+        Survey:
+            Parsed survey object.
 
     Raises:
-        FileTypeError: If input file is not .csv
+        FileTypeError:
+            If the input file is not a `.csv`.
+
+
+    Examples:
+
+        Input CSV (`survey.csv`):
+            ┌────────┬──────┬──────┬─────┐
+            │ gender ┆ Q1_1 ┆ Q1_2 ┆ Q2  │
+            ╞════════╪══════╪══════╪═════╡
+            │ M      ┆ A    ┆ B    ┆ X;Y │
+            │ F      ┆      ┆ B    ┆ X   │
+            │ F      ┆ A    ┆      ┆ Y;Z │
+            └────────┴──────┴──────┴─────┘
+
+        Usage:
+
+            survey = read_csv(
+                "survey.csv",
+                compact_ids=["hobby"]
+            )
+
+
+        Parsed result:
+
+            gender →
+                ["M", "F", "F"]
+
+            Q1 →
+                [
+                    ["A", "B"],
+                    ["B"],
+                    ["A"]
+                ]
+
+            Q2 →
+                [
+                    ["X", "Y"],
+                    ["X"],
+                    ["Y", "Z"]
+                ]
+
+    Notes:
+        - Empty strings in CSV are treated as null values
+        - Multi-select columns can be:
+            • spread across multiple columns (Q1_1, Q1_2)
+            • stored as compact strings ("A;B")
+        - Column parsing behavior follows `read_polars`
     """
     if not isinstance(path, Path):
         path = Path(path)
@@ -62,36 +119,105 @@ def to_csv(
     compact_separator: str = ";",
 ):
     """
-    Export a Survey to CSV files.
+    Export a Survey object to CSV files.
 
     This function writes three CSV files:
-    - `{name}_data.csv`: Survey response data.
-    - `{name}_variables_info.csv`: Metadata about variables.
-    - `{name}_options_info.csv`: Mapping of option text to indices.
+
+    - `{name}_data.csv`:
+        Survey responses (main dataset)
+
+    - `{name}_variables_info.csv`:
+        Variable metadata (id, type, label)
+
+    - `{name}_values_info.csv`:
+        Mapping of values text to numeric indices
 
     Args:
-        survey (Survey): The Survey instance to export.
-        path (str | pathlib.Path): Directory where output files will be saved.
-        name (str, optional): Base name for output files. Defaults to "survey".
-        compact (bool, optional): Whether to compact multiselect responses into
-            a single column by joining list values. Defaults to True.
-        compact_separator (str, optional): Separator used when joining
-            multiselect values in compact mode. Defaults to ";".
+        survey (Survey):
+            The Survey instance to export.
+
+        path (str | Path, default=""):
+            Output directory.
+
+        name (str, default="survey"):
+            Base filename for exported files.
+
+        compact (bool, default=True):
+            Controls how multi-select variables are exported:
+
+            - True → compact format (e.g. "A;B")
+            - False → expanded format (one column per option)
+
+        compact_separator (str, default=";"):
+            Separator used when joining multi-select values.
 
     Returns:
         None
 
     Raises:
-        OSError: If files cannot be written to the specified location.
+        OSError:
+            If files cannot be written.
+
+    Examples:
+
+        Given Survey data:
+
+            gender →
+                ["M", "F", "F"]
+
+            hobby →
+                [
+                    ["A", "B"],
+                    ["B"],
+                    []
+                ]
+
+
+        Export in compact mode:
+
+            to_csv(survey, path=".", name="survey", compact=True)
+
+
+        Output: `survey_data.csv`
+            ┌────────┬───────┐
+            │ gender ┆ hobby │
+            ╞════════╪═══════╡
+            │ M      ┆ A;B   │
+            │ F      ┆ B     │
+            │ F      ┆       │
+            └────────┴───────┘
+
+        Export in non-compact mode:
+
+            to_csv(survey, compact=False)
+
+
+        Output: `survey_data.csv`
+
+            ┌────────┬─────────┬─────────┐
+            │ gender ┆ hobby_1 ┆ hobby_2 │
+            ╞════════╪═════════╪═════════╡
+            │ M      ┆ A       ┆ B       │
+            │ F      ┆         ┆ B       │
+            │ F      ┆         ┆         │
+            └────────┴─────────┴─────────┘
+
+        Variables metadata (`survey_variables_info.csv`):
+
+            gender,SINGLE,gender
+            hobby,MULTISELECT,hobby
+
+
+        Values mapping (`survey_values_info.csv`):
+
+            hobby,A,1
+            hobby,B,2
+
 
     Notes:
-        - In compact mode, multiselect responses (list columns) are joined into
-          strings using the specified separator.
-        - In non-compact mode, multiselect responses are exported as boolean columns
-        - The `{name}_variables_info.csv` file contains variable IDs, types,
-          and labels.
-        - The `{name}_options_info.csv` file contains option text and their
-          corresponding indices for each variable.
+        - Compact mode is recommended for storage and interoperability
+        - Non-compact mode is useful for modeling (e.g. ML features)
+        - Output column order follows the Survey variable order
     """
     if not isinstance(path, Path):
         path = Path(path)
@@ -129,4 +255,4 @@ def to_csv(
             for variable in survey.variables
             for op, index in variable.value_indices.items()
         ]
-    ).write_csv(path / f"{name}_options_info.csv")
+    ).write_csv(path / f"{name}_values_info.csv")

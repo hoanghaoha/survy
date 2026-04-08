@@ -79,7 +79,7 @@ def test_to_csv_success_compact(tmp_path: Path):
 
     assert (tmp_path / "out_data.csv").exists()
     assert (tmp_path / "out_variables_info.csv").exists()
-    assert (tmp_path / "out_options_info.csv").exists()
+    assert (tmp_path / "out_values_info.csv").exists()
 
 
 def test_to_csv_success_non_compact(tmp_path: Path):
