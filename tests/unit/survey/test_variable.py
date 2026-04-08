@@ -183,7 +183,42 @@ def test_frequencies_select():
     s = polars.Series("Q1", ["A", "B", "B"])
     q = Variable(s)
 
-    assert q.frequencies == {"A": 1, "B": 2}
+    assert_frame_equal(
+        q.frequencies,
+        polars.DataFrame(
+            {
+                "Q1": ["A", "B"],
+                "count": [1, 2],
+                "proportion": [1 / 3, 2 / 3],
+            },
+            schema={
+                "Q1": polars.String,
+                "count": polars.UInt32,
+                "proportion": polars.Float64,
+            },
+        ),
+    )
+
+
+def test_frequencies_multiselect():
+    s = polars.Series("Q1", [["X", "Y"], ["X"], ["Y"]])
+    q = Variable(s)
+
+    assert_frame_equal(
+        q.frequencies,
+        polars.DataFrame(
+            {
+                "Q1": ["X", "Y"],
+                "count": [2, 2],
+                "proportion": [2 / 3, 2 / 3],
+            },
+            schema={
+                "Q1": polars.String,
+                "count": polars.UInt32,
+                "proportion": polars.Float64,
+            },
+        ),
+    )
 
 
 def test_sps_calls_strategy(monkeypatch):

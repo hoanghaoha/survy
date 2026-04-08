@@ -37,28 +37,30 @@ class NumberStrategy(BaseStrategy):
         return df
 
     @property
-    def frequencies(self) -> dict[str, int]:
-        """
-        Compute frequency counts for each numeric value.
-
-        Null values are excluded from the base.
+    def frequencies(self) -> polars.DataFrame:
+        """Frequency counts and proportions for each numeric value.
 
         Returns:
-            dict[str, int]: Mapping of value → count.
+            A DataFrame with columns:
+                - value name: the numeric value
+                - "count": number of respondents with that value
+                - "proportion": count divided by total number of respondents
+
+        Notes:
+            Null values are excluded from counts but included in the base,
+            so proportions may not sum to 1.
         """
         id = self.series.name
-        df = self.get_df()
-
-        result = (
-            df.filter(polars.col(id).is_not_null())
-            .group_by(id)
-            .agg(polars.col(id).count().alias("base"))
-            .rename({id: "option"})
-            .sort("option")
-            .to_dicts()
+        base = len(self.series)
+        df = (
+            self.get_df(dtype="number")
+            .filter(polars.col(id).is_not_null())[id]
+            .value_counts(name="count")
+            .sort(id)
+            .with_columns((polars.col("count") / base).alias("proportion"))
         )
 
-        return {item["option"]: item["base"] for item in result}
+        return df
 
     def get_sps(self, label: str) -> str:
         """
