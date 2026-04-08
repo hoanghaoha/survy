@@ -4,10 +4,19 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "survy"
-version = "0.1.4"
+version = "0.2.0"
 description = "Process, transform and analyze survey-format data with clean and simple API."
 readme = "README.md"
 requires-python = ">=3.12"
+license = { text = "MIT" }
+classifiers = [
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Intended Audience :: Science/Research",
+  "Topic :: Scientific/Engineering :: Information Analysis",
+  "Operating System :: OS Independent",
+]
 dependencies = [
   "polars[excel]>=1.37.1",
   "numpy>2.0.0",
