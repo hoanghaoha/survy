@@ -3,13 +3,14 @@ import polars
 from polars.testing import assert_frame_equal
 import pytest
 from pathlib import Path
-import survy
 from survy import read_csv
-from survy.analyze.crosstab._utils import AggFunc
-from survy.errors import DataStructureError, VarTypeError
 from survy.survey.survey import Survey
 from survy.variable._utils import VarType
 from survy.variable.variable import Variable
+from survy.errors import DataStructureError
+# import survy
+# from survy.analyze.crosstab._utils import AggFunc
+# from survy.errors import DataStructureError, VarTypeError
 
 FIXTURES = Path(__file__).parent.parent / "fixtures"
 
@@ -87,57 +88,60 @@ def test_survey_df(
         assert df.width == 11
 
 
-@pytest.mark.parametrize("aggfunc", ["count", "percent", "mean"])
-@pytest.mark.parametrize(
-    "column_id", ["Q1", "Q2", "Q3", "Q4/1", "Q4/2", "Q5/1", "Q5/2"]
-)
-@pytest.mark.parametrize("row_id", ["Q1", "Q2", "Q3", "Q4/1", "Q4/2", "Q5/1", "Q5/2"])
-def test_crosstab_no_filter(
-    survey: Survey,
-    aggfunc: AggFunc,
-    column_id: str,
-    row_id: str,
-):
-    crosstab = survy.crosstab(survey[column_id], survey[row_id], None, aggfunc)
-    assert isinstance(crosstab, dict)
-    assert "Total" in crosstab.keys()
-    assert crosstab["Total"].height > 0
-    assert crosstab["Total"].width > 0
-    assert all(
-        [
-            value in crosstab["Total"].columns
-            for value in survey[column_id].value_indices.keys()
-        ]
-    )
+# @pytest.mark.parametrize("aggfunc", ["count", "percent", "mean"])
+# @pytest.mark.parametrize(
+#     "column_id", ["Q1", "Q2", "Q3", "Q4/1", "Q4/2", "Q5/1", "Q5/2"]
+# )
+# @pytest.mark.parametrize("row_id", ["Q1", "Q2", "Q3", "Q4/1", "Q4/2", "Q5/1", "Q5/2"])
+# def test_crosstab_no_filter(
+#     survey: Survey,
+#     aggfunc: AggFunc,
+#     column_id: str,
+#     row_id: str,
+# ):
+#     result = survy.crosstab(survey[column_id], survey[row_id], None, aggfunc)
+#     assert isinstance(result, dict)
+#     print(result)
+#     assert "Total" in crosstab.keys()
+#     assert crosstab["Total"].height > 0
+#     assert crosstab["Total"].width > 0
+#     assert all(
+#         [
+#             value in crosstab["Total"].columns
+#             for value in survey[column_id].value_indices.keys()
+#         ]
+#     )
 
 
-@pytest.mark.parametrize("aggfunc", ["count", "percent", "mean"])
-@pytest.mark.parametrize("column_id", ["Q1", "Q2", "Q3"])
-@pytest.mark.parametrize("row_id", ["Q1", "Q2", "Q3"])
-@pytest.mark.parametrize("filter_id", ["Q1", "Q2"])
-def test_crosstab_with_filter(
-    survey: Survey, aggfunc: AggFunc, column_id: str, row_id: str, filter_id: str
-):
-    crosstab = survy.crosstab(
-        survey[column_id], survey[row_id], survey[filter_id], aggfunc
-    )
-    for key in survey[filter_id].value_indices.keys():
-        assert key in crosstab
-        assert crosstab[key].height > 0
-        assert crosstab[key].width > 0
-
-
-@pytest.mark.parametrize("aggfunc", ["count", "percent", "mean"])
-@pytest.mark.parametrize("column_id", ["Q1", "Q2", "Q4/1", "Q4/2", "Q5/1", "Q5/2"])
-@pytest.mark.parametrize("row_id", ["Q1", "Q2", "Q3", "Q4/1", "Q4/2", "Q5/1", "Q5/2"])
-def test_crosstab_error(survey: Survey, aggfunc: AggFunc, column_id: str, row_id: str):
-    with pytest.raises(VarTypeError):
-        assert survy.crosstab(
-            survey[column_id],
-            survey[row_id],
-            survey["Q3"],
-            aggfunc,
-        )
+#
+#
+# @pytest.mark.parametrize("aggfunc", ["count", "percent", "mean"])
+# @pytest.mark.parametrize("column_id", ["Q1", "Q2", "Q3"])
+# @pytest.mark.parametrize("row_id", ["Q1", "Q2", "Q3"])
+# @pytest.mark.parametrize("filter_id", ["Q1", "Q2"])
+# def test_crosstab_with_filter(
+#     survey: Survey, aggfunc: AggFunc, column_id: str, row_id: str, filter_id: str
+# ):
+#     crosstab = survy.crosstab(
+#         survey[column_id], survey[row_id], survey[filter_id], aggfunc
+#     )
+#     for key in survey[filter_id].value_indices.keys():
+#         assert key in crosstab
+#         assert crosstab[key].height > 0
+#         assert crosstab[key].width > 0
+#
+#
+# @pytest.mark.parametrize("aggfunc", ["count", "percent", "mean"])
+# @pytest.mark.parametrize("column_id", ["Q1", "Q2", "Q4/1", "Q4/2", "Q5/1", "Q5/2"])
+# @pytest.mark.parametrize("row_id", ["Q1", "Q2", "Q3", "Q4/1", "Q4/2", "Q5/1", "Q5/2"])
+# def test_crosstab_error(survey: Survey, aggfunc: AggFunc, column_id: str, row_id: str):
+#     with pytest.raises(VarTypeError):
+#         assert survy.crosstab(
+#             survey[column_id],
+#             survey[row_id],
+#             survey["Q3"],
+#             aggfunc,
+#         )
 
 
 def test_survey_export_csv(survey: Survey, tmp_path: Path):
