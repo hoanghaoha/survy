@@ -39,6 +39,12 @@ class Variable:
     def __str__(self) -> str:
         """
         Representation string of variable.
+
+        Examples:
+        >>> gender = Variable(polars.Series("gender", ["Male", "Female", "Male"]))
+
+        >>> print(gender)
+        Variable(id=gender, label=gender, value_indices={'Male': 1, 'Female': 2}, base=3)"
         """
         return f"Variable(id={self.id}, label={self.label}, value_indices={self.value_indices}, base={self.base})"
 
@@ -157,6 +163,22 @@ class Variable:
 
         Raises:
             VarTypeError: If type cannot be determined.
+
+        Examples:
+
+        >>> gender = Variable(polars.Series("gender", ["Male", "Female", "Male"]))
+
+        >>> gender.vtype
+        select
+
+        >>> yob = Variable(polars.Series("yob", [2000, 1999, 1998]))
+
+        >>> yob.vtype
+        number
+
+        >>> hobby = Variable(polars.Series("hobby", [["Sport", Book"], ["Sport", "Movie"], ["Movie"]]))
+        >>> hobby.vtype
+        multi_select
         """
         dtype = self.dtype
 
@@ -190,6 +212,13 @@ class Variable:
 
         Returns:
             int: Base count.
+
+        Examples:
+
+        >>> gender = Variable(polars.Series("gender", ["Male", "Female", "Male", None]))
+
+        >>> gender.base
+        3
         """
         return len([i for i in self.series.to_list() if i])
 
@@ -200,6 +229,13 @@ class Variable:
 
         Returns:
             int: Length of series.
+
+        Examples:
+
+        >>> gender = Variable(polars.Series("gender", ["Male", "Female", "Male", None]))
+
+        >>> gender.len
+        4
         """
         return self.series.shape[0]
 
@@ -228,6 +264,19 @@ class Variable:
 
         Returns:
             None
+
+        Examples:
+
+        >>> gender = Variable(polars.Series("gender", ["Male", "Female", "Male"]))
+
+        >>> gender.replace({"Male": "Men"})
+        >>> gender.series
+        Series: 'gender' [str]
+        [
+                "Men"
+                "Female"
+                "Men"
+        ]
         """
         self.series = self.series.replace(mapping)
 
@@ -237,6 +286,13 @@ class Variable:
 
         Returns:
             dict: Variable representation.
+
+        Examples:
+
+        >>> gender = Variable(polars.Series("gender", ["Male", "Female", "Male"]))
+
+        >>> gender.to_dict()
+        {'id': 'gender', 'data': ['Male', 'Female', 'Male'], 'label': '', 'value_indices': {'Female': 1, 'Male': 2}, 'vtype': <VarType.SELECT: 'select'>}
         """
         return {
             "id": self.id,
@@ -258,6 +314,35 @@ class Variable:
                 - value name: the category, option, or numeric value
                 - "count": number of respondents for that value
                 - "proportion": count divided by total number of respondents
+
+        Example:
+
+            >>> gender = Variable(polars.Series("gender", ["Male", "Female", "Male"]))
+
+            >>> gender.frequencies
+            shape: (2, 3)
+            ┌────────┬───────┬────────────┐
+            │ gender ┆ count ┆ proportion │
+            │ ---    ┆ ---   ┆ ---        │
+            │ str    ┆ u32   ┆ f64        │
+            ╞════════╪═══════╪════════════╡
+            │ Female ┆ 1     ┆ 0.333333   │
+            │ Male   ┆ 2     ┆ 0.666667   │
+            └────────┴───────┴────────────┘
+
+            >>> hobby = Variable(polars.Series("hobby", [["Sport", Book"], ["Sport", "Movie"], ["Movie"]]))
+
+            >>> hobby.frequencies
+            shape: (3, 3)
+            ┌───────┬───────┬────────────┐
+            │ hobby ┆ count ┆ proportion │
+            │ ---   ┆ ---   ┆ ---        │
+            │ str   ┆ u32   ┆ f64        │
+            ╞═══════╪═══════╪════════════╡
+            │ Book  ┆ 1     ┆ 0.333333   │
+            │ Movie ┆ 2     ┆ 0.666667   │
+            │ Sport ┆ 2     ┆ 0.666667   │
+            └───────┴───────┴────────────┘
         """
         return self.strategy.frequencies
 
@@ -268,6 +353,34 @@ class Variable:
 
         Returns:
             str: SPSS syntax string.
+
+        Example:
+
+            >>> gender = Variable(polars.Series("gender", ["Male", "Female", "Male"]))
+
+            >>> gender.sps
+            VARIABLE LABELS gender 'gender'.
+            VALUE LABELS gender 1 'Female'
+            2 'Male'.
+            VARIABLE LEVEL gender (NOMINAL).
+
+            >>> hobby = Variable(polars.Series("hobby", [["Sport", Book"], ["Sport", "Movie"], ["Movie"]]))
+
+            >>> hooby.sps
+            VARIABLE LABELS hobby_1 '[Book] hobby'.
+            VARIABLE LABELS hobby_2 '[Movie] hobby'.
+            VARIABLE LABELS hobby_3 '[Sport] hobby'.
+            VALUE LABELS hobby_1 1 'Book'.
+            VALUE LABELS hobby_2 1 'Movie'.
+            VALUE LABELS hobby_3 1 'Sport'.
+            VARIABLE LEVEL hobby_1 (NOMINAL).
+            VARIABLE LEVEL hobby_2 (NOMINAL).
+            VARIABLE LEVEL hobby_3 (NOMINAL).
+            MRSETS /MDGROUP NAME=$hobby
+            LABEL='hobby'
+            CATEGORYLABELS=COUNTEDVALUES VALUE=1
+            VARIABLES=hobby_1 hobby_2 hobby_3
+            /DISPLAY NAME=[$hobby].
         """
         return self.strategy.get_sps(self.label)
 
@@ -283,5 +396,84 @@ class Variable:
 
         Returns:
             polars.DataFrame: Processed DataFrame.
+
+        Example:
+
+            >>> gender = Variable(polars.Series("gender", ["Male", "Female", "Male"]))
+            >>> gender.get_df("text")
+            shape: (3, 1)
+            ┌────────┐
+            │ gender │
+            │ ---    │
+            │ str    │
+            ╞════════╡
+            │ Male   │
+            │ Female │
+            │ Male   │
+            └────────┘
+
+            >>> gender.get_df("number")
+            shape: (3, 1)
+            ┌────────┐
+            │ gender │
+            │ ---    │
+            │ i64    │
+            ╞════════╡
+            │ 2      │
+            │ 1      │
+            │ 2      │
+            └────────┘
+
+            >>> hobby = Variable(polars.Series("hobby", [["Sport", Book"], ["Sport", "Movie"], ["Movie"]]))
+            >>> hobby.get_df("compact")
+            shape: (3, 1)
+            ┌────────────────────┐
+            │ hobby              │
+            │ ---                │
+            │ list[str]          │
+            ╞════════════════════╡
+            │ ["Book", "Sport"]  │
+            │ ["Movie", "Sport"] │
+            │ ["Movie"]          │
+            └────────────────────┘
+
+            >>> hobby.get_df("text")
+            shape: (3, 3)
+            ┌─────────┬─────────┬─────────┐
+            │ hobby_1 ┆ hobby_2 ┆ hobby_3 │
+            │ ---     ┆ ---     ┆ ---     │
+            │ str     ┆ str     ┆ str     │
+            ╞═════════╪═════════╪═════════╡
+            │ Book    ┆ null    ┆ Sport   │
+            │ null    ┆ Movie   ┆ Sport   │
+            │ null    ┆ Movie   ┆ null    │
+            └─────────┴─────────┴─────────┘
+
+            >>> hobby.get_df("number")
+            shape: (3, 3)
+            ┌─────────┬─────────┬─────────┐
+            │ hobby_1 ┆ hobby_2 ┆ hobby_3 │
+            │ ---     ┆ ---     ┆ ---     │
+            │ i8      ┆ i8      ┆ i8      │
+            ╞═════════╪═════════╪═════════╡
+            │ 1       ┆ 0       ┆ 1       │
+            │ 0       ┆ 1       ┆ 1       │
+            │ 0       ┆ 1       ┆ 0       │
+            └─────────┴─────────┴─────────┘
+
+
+            >>> yob = Variable(polars.Series("yob", [2000, 1999, 1998]))
+
+            >>> yob.get_df()
+            shape: (3, 1)
+            ┌──────┐
+            │ yob  │
+            │ ---  │
+            │ i64  │
+            ╞══════╡
+            │ 2000 │
+            │ 1999 │
+            │ 1998 │
+            └──────┘
         """
         return self.strategy.get_df(dtype=dtype)

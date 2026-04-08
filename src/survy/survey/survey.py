@@ -16,11 +16,6 @@ class Survey:
 
     Args:
         variables (list[Variable]): List of Variable objects in the survey.
-
-    Examples:
-        >>> survey = Survey(variables=[q1, q2])
-        >>> df = survey.get_df()
-        >>> print(df.shape)
     """
 
     def __init__(self, variables: list[Variable]):
@@ -35,11 +30,23 @@ class Survey:
                 string representation.
 
         Examples:
-            >>> print(survey)
-            Survey (3 variables)
-                Variable(id=Q1, label=Gender, value_indices={'Male': 1, 'Female': 2}, base=100)"
-                Variable(id=Q2, label=Age Group, value_indices={'18-24': 1, '25-30': 2, '31-49': 3}, base=100)"
-                Variable(id=Q3, label=City, value_indices={'Ha Noi': 1, 'Ho Chi Minh': 2}, base=100)"
+            >>> df = polars.DataFrame(
+                {
+                    "gender": ["Male", "Female", "Male"],
+                    "yob": [2000, 1999, 1998],
+                    "hobby": ["Sport;Book", "Sport;Movie", "Movie"],
+                    "animal_1": ["Cat", "", "Cat"],
+                    "animal_2": ["Dog", "Dog", ""],
+                }
+            )
+
+            >>> survey = read_polars(df, auto_detect=True)
+            >>> survey
+            Survey (4 variables)
+                Variable(id=gender, label=gender, value_indices={'Female': 1, 'Male': 2}, base=3)
+                Variable(id=yob, label=yob, value_indices={}, base=3)
+                Variable(id=hobby, label=hobby, value_indices={'Book': 1, 'Movie': 2, 'Sport': 3}, base=3)
+                Variable(id=animal, label=animal, value_indices={'Cat': 1, 'Dog': 2}, base=3)
         """
         lines = [f"Survey ({len(self.variables)} variables)"]
         for variable in self.variables:
@@ -60,8 +67,19 @@ class Survey:
             KeyError: If the variable ID does not exist.
 
         Examples:
-            >>> variable = survey["Q1"]
-            >>> print(variable.label)
+            >>> df = polars.DataFrame(
+                {
+                    "gender": ["Male", "Female", "Male"],
+                    "yob": [2000, 1999, 1998],
+                    "hobby": ["Sport;Book", "Sport;Movie", "Movie"],
+                    "animal_1": ["Cat", "", "Cat"],
+                    "animal_2": ["Dog", "Dog", ""],
+                }
+            )
+
+            >>> survey = read_polars(df, auto_detect=True)
+            >>> survey["gender"]
+            Variable(id=gender, label=gender, value_indices={'Female': 1, 'Male': 2}, base=3)
         """
         for var in self.variables:
             if var.id == variable_id:
@@ -80,10 +98,6 @@ class Survey:
         Notes:
             If the variable's ID already exists in the survey, a numeric suffix
             is appended (e.g. ``"Q1#1"``, ``"Q1#2"``) until the ID is unique.
-
-        Examples:
-            >>> survey.add(q4)
-            >>> survey.add(polars.Series("Q4", [1, 2, 3]))
         """
         if isinstance(variable, polars.Series):
             variable = Variable(series=variable)
@@ -110,9 +124,6 @@ class Survey:
 
         Raises:
             Nothing: Variables not found are silently ignored.
-
-        Examples:
-            >>> survey.drop("Q1")
         """
         self.variables = [var for var in self.variables if var.id != id]
 
@@ -128,11 +139,6 @@ class Survey:
 
         Returns:
             None
-
-        Examples:
-            >>> survey.sort()
-            >>> survey.sort(key=lambda var: var.label)
-            >>> survey.sort(reverse=True)
         """
         self.variables = sorted(self.variables, key=key, reverse=reverse)
 
@@ -158,11 +164,38 @@ class Survey:
             - NUMBER variable will not be updated for value_indices
 
         Examples:
-            >>> metadata = [
-            ...     {"id": "Q1", "label": "Updated label"},
-            ...     {"id": "Q2", "value_indices": {"Yes": 1, "No": 0}},
-            ... ]
-            >>> survey.update(metadata)
+
+            >>> df = polars.DataFrame(
+                {
+                    "gender": ["Male", "Female", "Male"],
+                    "yob": [2000, 1999, 1998],
+                    "hobby": ["Sport;Book", "Sport;Movie", "Movie"],
+                    "animal_1": ["Cat", "", "Cat"],
+                    "animal_2": ["Dog", "Dog", ""],
+                }
+            )
+
+            >>> survey = read_polars(df, auto_detect=True)
+
+            >>> survey
+            Survey (4 variables)
+                Variable(id=gender, label=gender, value_indices={'Female': 1, 'Male': 2}, base=3)
+                Variable(id=yob, label=yob, value_indices={}, base=3)
+                Variable(id=hobby, label=hobby, value_indices={'Book': 1, 'Movie': 2, 'Sport': 3}, base=3)
+                Variable(id=animal, label=animal, value_indices={'Cat': 1, 'Dog': 2}, base=3)
+
+            >>> survey.update(
+                [
+                    {"id": "gender", "label": "Gender of respondent"},
+                    {"id": "hobby", "value_indices": {"Sport": 1, "Book": 2, "Movie": 3}},
+                ]
+            )
+            >>> survey
+            Survey (4 variables)
+                Variable(id=gender, label=Gender of respondent, value_indices={'Female': 1, 'Male': 2}, base=3)
+                Variable(id=yob, label=yob, value_indices={}, base=3)
+                Variable(id=hobby, label=hobby, value_indices={'Sport': 1, 'Book': 2, 'Movie': 3}, base=3)
+                Variable(id=animal, label=animal, value_indices={'Cat': 1, 'Dog': 2}, base=3)
         """
         for info in metadata:
             var_id = info.get("id")
@@ -178,7 +211,9 @@ class Survey:
             variable = self[var_id]
             variable.label = info.get("label", "")
             if not variable.series.dtype.is_numeric():
-                variable.value_indices = info.get("value_indices", {})
+                value_indices = info.get("value_indices", {})
+                if value_indices:
+                    variable.value_indices = value_indices
 
     def filter(self, variable_id: str, values: Any | list[Any]) -> "Survey":
         """
@@ -195,10 +230,43 @@ class Survey:
             KeyError: If the variable ID does not exist.
 
         Examples:
-            >>> survey.filter("Q1", "Male")
-            >>> survey.filter("Q1", ["Male", "Female"])
-            >>> survey.filter("Q2", [1, 2])
-            >>> survey.filter("Q3", ["a", "b"])  # multiselect
+
+            >>> df = polars.DataFrame(
+                {
+                    "gender": ["Male", "Female", "Male"],
+                    "yob": [2000, 1999, 1998],
+                    "hobby": ["Sport;Book", "Sport;Movie", "Movie"],
+                    "animal_1": ["Cat", "", "Cat"],
+                    "animal_2": ["Dog", "Dog", ""],
+                }
+            )
+
+            >>> survey = read_polars(df, auto_detect=True)
+
+            >>> survey.get_df()
+            shape: (3, 4)
+            ┌────────┬──────┬────────────────────┬────────────────┐
+            │ gender ┆ yob  ┆ hobby              ┆ animal         │
+            │ ---    ┆ ---  ┆ ---                ┆ ---            │
+            │ str    ┆ i64  ┆ list[str]          ┆ list[str]      │
+            ╞════════╪══════╪════════════════════╪════════════════╡
+            │ Male   ┆ 2000 ┆ ["Book", "Sport"]  ┆ ["Cat", "Dog"] │
+            │ Female ┆ 1999 ┆ ["Movie", "Sport"] ┆ ["Dog"]        │
+            │ Male   ┆ 1998 ┆ ["Movie"]          ┆ ["Cat"]        │
+            └────────┴──────┴────────────────────┴────────────────┘
+
+            >>> survey = survey.filter("hobby", ["Sport", "Book"])
+
+            >>> survey.get_df()
+            shape: (2, 4)
+            ┌────────┬──────┬────────────────────┬────────────────┐
+            │ gender ┆ yob  ┆ hobby              ┆ animal         │
+            │ ---    ┆ ---  ┆ ---                ┆ ---            │
+            │ str    ┆ i64  ┆ list[str]          ┆ list[str]      │
+            ╞════════╪══════╪════════════════════╪════════════════╡
+            │ Male   ┆ 2000 ┆ ["Book", "Sport"]  ┆ ["Cat", "Dog"] │
+            │ Female ┆ 1999 ┆ ["Movie", "Sport"] ┆ ["Dog"]        │
+            └────────┴──────┴────────────────────┴────────────────┘
         """
         if not isinstance(values, list):
             values = [values]
@@ -245,9 +313,89 @@ class Survey:
             - The final DataFrame is constructed using horizontal concatenation.
 
         Examples:
-            >>> df = survey.get_df()
-            >>> df = survey.get_df(select_dtype="number")
-            >>> df = survey.get_df(multiselect_dtype="compact")
+            >>> df = polars.DataFrame(
+                {
+                    "gender": ["Male", "Female", "Male"],
+                    "yob": [2000, 1999, 1998],
+                    "hobby": ["Sport;Book", "Sport;Movie", "Movie"],
+                    "animal_1": ["Cat", "", "Cat"],
+                    "animal_2": ["Dog", "Dog", ""],
+                }
+            )
+
+            >>> survey = read_polars(df, auto_detect=True)
+
+            >>> survey.get_df(select_dtype="text", multiselect_dtype="compact")
+            shape: (3, 4)
+            ┌────────┬──────┬────────────────────┬────────────────┐
+            │ gender ┆ yob  ┆ hobby              ┆ animal         │
+            │ ---    ┆ ---  ┆ ---                ┆ ---            │
+            │ str    ┆ i64  ┆ list[str]          ┆ list[str]      │
+            ╞════════╪══════╪════════════════════╪════════════════╡
+            │ Male   ┆ 2000 ┆ ["Book", "Sport"]  ┆ ["Cat", "Dog"] │
+            │ Female ┆ 1999 ┆ ["Movie", "Sport"] ┆ ["Dog"]        │
+            │ Male   ┆ 1998 ┆ ["Movie"]          ┆ ["Cat"]        │
+            └────────┴──────┴────────────────────┴────────────────┘
+
+            >>> survey.get_df(select_dtype="number", multiselect_dtype="compact")
+            shape: (3, 4)
+            ┌────────┬──────┬────────────────────┬────────────────┐
+            │ gender ┆ yob  ┆ hobby              ┆ animal         │
+            │ ---    ┆ ---  ┆ ---                ┆ ---            │
+            │ i64    ┆ i64  ┆ list[str]          ┆ list[str]      │
+            ╞════════╪══════╪════════════════════╪════════════════╡
+            │ 2      ┆ 2000 ┆ ["Book", "Sport"]  ┆ ["Cat", "Dog"] │
+            │ 1      ┆ 1999 ┆ ["Movie", "Sport"] ┆ ["Dog"]        │
+            │ 2      ┆ 1998 ┆ ["Movie"]          ┆ ["Cat"]        │
+            └────────┴──────┴────────────────────┴────────────────┘
+
+            >>> survey.get_df(select_dtype="text", multiselect_dtype="text")
+            shape: (3, 7)
+            ┌────────┬──────┬─────────┬─────────┬─────────┬──────────┬──────────┐
+            │ gender ┆ yob  ┆ hobby_1 ┆ hobby_2 ┆ hobby_3 ┆ animal_1 ┆ animal_2 │
+            │ ---    ┆ ---  ┆ ---     ┆ ---     ┆ ---     ┆ ---      ┆ ---      │
+            │ str    ┆ i64  ┆ str     ┆ str     ┆ str     ┆ str      ┆ str      │
+            ╞════════╪══════╪═════════╪═════════╪═════════╪══════════╪══════════╡
+            │ Male   ┆ 2000 ┆ Book    ┆ null    ┆ Sport   ┆ Cat      ┆ Dog      │
+            │ Female ┆ 1999 ┆ null    ┆ Movie   ┆ Sport   ┆ null     ┆ Dog      │
+            │ Male   ┆ 1998 ┆ null    ┆ Movie   ┆ null    ┆ Cat      ┆ null     │
+            └────────┴──────┴─────────┴─────────┴─────────┴──────────┴──────────┘
+
+            >>> survey.get_df(select_dtype="text", multiselect_dtype="number")
+            shape: (3, 7)
+            ┌────────┬──────┬─────────┬─────────┬─────────┬──────────┬──────────┐
+            │ gender ┆ yob  ┆ hobby_1 ┆ hobby_2 ┆ hobby_3 ┆ animal_1 ┆ animal_2 │
+            │ ---    ┆ ---  ┆ ---     ┆ ---     ┆ ---     ┆ ---      ┆ ---      │
+            │ str    ┆ i64  ┆ i8      ┆ i8      ┆ i8      ┆ i8       ┆ i8       │
+            ╞════════╪══════╪═════════╪═════════╪═════════╪══════════╪══════════╡
+            │ Male   ┆ 2000 ┆ 1       ┆ 0       ┆ 1       ┆ 1        ┆ 1        │
+            │ Female ┆ 1999 ┆ 0       ┆ 1       ┆ 1       ┆ 0        ┆ 1        │
+            │ Male   ┆ 1998 ┆ 0       ┆ 1       ┆ 0       ┆ 1        ┆ 0        │
+            └────────┴──────┴─────────┴─────────┴─────────┴──────────┴──────────┘
+
+            >>> survey.get_df(select_dtype="number", multiselect_dtype="text")
+            shape: (3, 7)
+            ┌────────┬──────┬─────────┬─────────┬─────────┬──────────┬──────────┐
+            │ gender ┆ yob  ┆ hobby_1 ┆ hobby_2 ┆ hobby_3 ┆ animal_1 ┆ animal_2 │
+            │ ---    ┆ ---  ┆ ---     ┆ ---     ┆ ---     ┆ ---      ┆ ---      │
+            │ i64    ┆ i64  ┆ str     ┆ str     ┆ str     ┆ str      ┆ str      │
+            ╞════════╪══════╪═════════╪═════════╪═════════╪══════════╪══════════╡
+            │ 2      ┆ 2000 ┆ Book    ┆ null    ┆ Sport   ┆ Cat      ┆ Dog      │
+            │ 1      ┆ 1999 ┆ null    ┆ Movie   ┆ Sport   ┆ null     ┆ Dog      │
+            │ 2      ┆ 1998 ┆ null    ┆ Movie   ┆ null    ┆ Cat      ┆ null     │
+            └────────┴──────┴─────────┴─────────┴─────────┴──────────┴──────────┘
+
+            >>> survey.get_df(select_dtype="number", multiselect_dtype="number")
+            shape: (3, 7)
+            ┌────────┬──────┬─────────┬─────────┬─────────┬──────────┬──────────┐
+            │ gender ┆ yob  ┆ hobby_1 ┆ hobby_2 ┆ hobby_3 ┆ animal_1 ┆ animal_2 │
+            │ ---    ┆ ---  ┆ ---     ┆ ---     ┆ ---     ┆ ---      ┆ ---      │
+            │ i64    ┆ i64  ┆ i8      ┆ i8      ┆ i8      ┆ i8       ┆ i8       │
+            ╞════════╪══════╪═════════╪═════════╪═════════╪══════════╪══════════╡
+            │ 2      ┆ 2000 ┆ 1       ┆ 0       ┆ 1       ┆ 1        ┆ 1        │
+            │ 1      ┆ 1999 ┆ 0       ┆ 1       ┆ 1       ┆ 0        ┆ 1        │
+            │ 2      ┆ 1998 ┆ 0       ┆ 1       ┆ 0       ┆ 1        ┆ 0        │
+            └────────┴──────┴─────────┴─────────┴─────────┴──────────┴──────────┘
         """
         dfs = []
         for variable in self.variables:
@@ -272,8 +420,72 @@ class Survey:
             - variable IDs are included as comments for readability.
 
         Examples:
-            >>> syntax = survey.sps
-            >>> print(syntax[:100])
+            >>> df = polars.DataFrame(
+                {
+                    "gender": ["Male", "Female", "Male"],
+                    "yob": [2000, 1999, 1998],
+                    "hobby": ["Sport;Book", "Sport;Movie", "Movie"],
+                    "animal_1": ["Cat", "", "Cat"],
+                    "animal_2": ["Dog", "Dog", ""],
+                }
+            )
+
+            >>> survey = read_polars(df, auto_detect=True)
+
+            >>> survey.sps
+            **gender
+
+            VARIABLE LABELS gender 'gender'.
+            VALUE LABELS gender 1 'Female'
+            2 'Male'.
+            VARIABLE LEVEL gender (NOMINAL).
+            **yob
+
+            VARIABLE LABELS yob 'yob'.
+            VARIABLE LEVEL yob (SCALE).
+            **hobby
+
+            VARIABLE LABELS hobby_1 '[Book] hobby'.
+            VARIABLE LABELS hobby_2 '[Movie] hobby'.
+            VARIABLE LABELS hobby_3 '[Sport] hobby'.
+            VALUE LABELS hobby_1 1 'Book'.
+            VALUE LABELS hobby_2 1 'Movie'.
+            VALUE LABELS hobby_3 1 'Sport'.
+            VARIABLE LEVEL hobby_1 (NOMINAL).
+            VARIABLE LEVEL hobby_2 (NOMINAL).
+            VARIABLE LEVEL hobby_3 (NOMINAL).
+            MRSETS /MDGROUP NAME=$hobby
+            LABEL='hobby'
+            CATEGORYLABELS=COUNTEDVALUES VALUE=1
+            VARIABLES=hobby_1 hobby_2 hobby_3
+            /DISPLAY NAME=[$hobby].
+            **animal
+
+            VARIABLE LABELS animal_1 '[Cat] animal'.
+            VARIABLE LABELS animal_2 '[Dog] animal'.
+            VALUE LABELS animal_1 1 'Cat'.
+            VALUE LABELS animal_2 1 'Dog'.
+            VARIABLE LEVEL animal_1 (NOMINAL).
+            VARIABLE LEVEL animal_2 (NOMINAL).
+            MRSETS /MDGROUP NAME=$animal
+            LABEL='animal'
+            CATEGORYLABELS=COUNTEDVALUES VALUE=1
+            VARIABLES=animal_1 animal_2
+            /DISPLAY NAME=[$animal].
+            CTABLES
+            /TABLE
+            gender [C][COUNT F40.0, TOTALS[COUNT F40.0]] +
+            yob [MEAN COMMA40.2] +
+            $hobby [C][COUNT F40.0, TOTALS[COUNT F40.0]] +
+            $animal [C][COUNT F40.0, TOTALS[COUNT F40.0]] +
+            BY [Input Tabspec here]
+            /SLABELS POSITION=ROW VISIBLE=NO
+            /CATEGORIES VARIABLES=ALL
+                EMPTY=INCLUDE TOTAL=YES POSITION=BEFORE
+            /COMPARETEST TYPE=MEAN ALPHA=0.05 ADJUST=NONE ORIGIN=COLUMN INCLUDEMRSETS=YES
+                CATEGORIES=ALLVISIBLE MEANSVARIANCE=TESTEDCATS MERGE=YES STYLE=SIMPLE SHOWSIG=NO
+            /COMPARETEST TYPE=PROP ALPHA=0.05 ADJUST=NONE ORIGIN=COLUMN INCLUDEMRSETS=YES
+                CATEGORIES=ALLVISIBLE MEANSVARIANCE=TESTEDCATS MERGE=YES STYLE=SIMPLE SHOWSIG=NO.
         """
         commands = []
 
@@ -303,8 +515,60 @@ class Survey:
             None
 
         Examples:
-            >>> survey.to_json("output/")
-            >>> survey.to_json("output/", name="my_survey")
+
+            >>> df = polars.DataFrame(
+                {
+                    "gender": ["Male", "Female", "Male"],
+                    "yob": [2000, 1999, 1998],
+                    "hobby": ["Sport;Book", "Sport;Movie", "Movie"],
+                    "animal_1": ["Cat", "", "Cat"],
+                    "animal_2": ["Dog", "Dog", ""],
+                }
+            )
+
+            >>> survey = read_polars(df, auto_detect=True)
+
+            >>> survey.get_df()
+            shape: (3, 4)
+            ┌────────┬──────┬────────────────────┬────────────────┐
+            │ gender ┆ yob  ┆ hobby              ┆ animal         │
+            │ ---    ┆ ---  ┆ ---                ┆ ---            │
+            │ str    ┆ i64  ┆ list[str]          ┆ list[str]      │
+            ╞════════╪══════╪════════════════════╪════════════════╡
+            │ Male   ┆ 2000 ┆ ["Book", "Sport"]  ┆ ["Cat", "Dog"] │
+            │ Female ┆ 1999 ┆ ["Movie", "Sport"] ┆ ["Dog"]        │
+            │ Male   ┆ 1998 ┆ ["Movie"]          ┆ ["Cat"]        │
+            └────────┴──────┴────────────────────┴────────────────┘
+
+            >>> survey.to_json("/data", name="survey")
+
+            >>> with open("data/survey.json", "r") as f:
+                data = json.load(f)
+
+            >>> data
+            {
+                "variables": [
+                    {
+                        "id": "gender",
+                        "data": ["Male", "Female", "Male"],
+                        "label": "",
+                        "value_indices": {"Female": 1, "Male": 2},
+                    },
+                    {"id": "yob", "data": [2000, 1999, 1998], "label": "", "value_indices": {}},
+                    {
+                        "id": "hobby",
+                        "data": [["Book", "Sport"], ["Movie", "Sport"], ["Movie"]],
+                        "label": "",
+                        "value_indices": {"Book": 1, "Movie": 2, "Sport": 3},
+                    },
+                    {
+                        "id": "animal",
+                        "data": [["Cat", "Dog"], ["Dog"], ["Cat"]],
+                        "label": "",
+                        "value_indices": {"Cat": 1, "Dog": 2},
+                    },
+                ]
+            }
         """
         from survy.io.json import to_json
 
@@ -359,9 +623,70 @@ class Survey:
             None
 
         Examples:
-            >>> survey.to_csv("output/")
-            >>> survey.to_csv("output/", compact=True)
-            >>> survey.to_csv("output/", name="study1", compact_separator="|")
+
+            >>> df = polars.DataFrame(
+                {
+                    "gender": ["Male", "Female", "Male"],
+                    "yob": [2000, 1999, 1998],
+                    "hobby": ["Sport;Book", "Sport;Movie", "Movie"],
+                    "animal_1": ["Cat", "", "Cat"],
+                    "animal_2": ["Dog", "Dog", ""],
+                }
+            )
+
+            >>> survey = read_polars(df, auto_detect=True)
+
+            >>> print(survey.get_df())
+            shape: (3, 4)
+            ┌────────┬──────┬────────────────────┬────────────────┐
+            │ gender ┆ yob  ┆ hobby              ┆ animal         │
+            │ ---    ┆ ---  ┆ ---                ┆ ---            │
+            │ str    ┆ i64  ┆ list[str]          ┆ list[str]      │
+            ╞════════╪══════╪════════════════════╪════════════════╡
+            │ Male   ┆ 2000 ┆ ["Book", "Sport"]  ┆ ["Cat", "Dog"] │
+            │ Female ┆ 1999 ┆ ["Movie", "Sport"] ┆ ["Dog"]        │
+            │ Male   ┆ 1998 ┆ ["Movie"]          ┆ ["Cat"]        │
+            └────────┴──────┴────────────────────┴────────────────┘
+
+            Export in compact mode:
+            >>> survey.to_csv(path=".", name="survey", compact=True)
+
+            Output: `survey_data.csv`
+            ┌────────┬──────┬────────────────────┬────────────────┐
+            │ gender ┆ yob  ┆ hobby              ┆ animal         │
+            ╞════════╪══════╪════════════════════╪════════════════╡
+            │ Male   ┆ 2000 ┆ Book;Sport         ┆ Cat;Dog        │
+            │ Female ┆ 1999 ┆ Movie;Sport        ┆ Dog            │
+            │ Male   ┆ 1998 ┆ Movie              ┆ Cat            │
+            └────────┴──────┴────────────────────┴────────────────┘
+
+            Export in non-compact mode:
+            >>> survey.to_csv(path=".", name="survey", compact=False)
+
+            Output: `survey_data.csv`
+            ┌────────┬──────┬─────────┬─────────┬─────────┬──────────┬──────────┐
+            │ gender ┆ yob  ┆ hobby_1 ┆ hobby_2 ┆ hobby_3 ┆ animal_1 ┆ animal_2 │
+            ╞════════╪══════╪═════════╪═════════╪═════════╪══════════╪══════════╡
+            │ Male   ┆ 2000 ┆ Book    ┆ null    ┆ Sport   ┆ Cat      ┆ Dog      │
+            │ Female ┆ 1999 ┆ null    ┆ Movie   ┆ Sport   ┆ null     ┆ Dog      │
+            │ Male   ┆ 1998 ┆ null    ┆ Movie   ┆ null    ┆ Cat      ┆ null     │
+            └────────┴──────┴─────────┴─────────┴─────────┴──────────┴──────────┘
+
+            Variables metadata (`survey_variables_info.csv`):
+                gender,SINGLE,gender
+                yob,NUMBER,yob
+                hobby,MULTISELECT,hobby
+                animal,MULTISELECT,animal
+
+
+            Values mapping (`survey_values_info.csv`):
+                gender,Male,1
+                gender,Female,2
+                hobby,Book,1
+                hobby,Movie,2
+                hobby,Sport,3
+                animal,Cat,1
+                animal,Dog,2
         """
         from survy.io.csv import to_csv
 

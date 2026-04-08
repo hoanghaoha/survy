@@ -54,72 +54,80 @@ def crosstab(
     Examples:
         Basic count crosstab:
 
-        >>> crosstab(gender, satisfaction)
-        {
-            'Total': shape: (3, 3)
-            ┌──────────────┬────────────┬────────────┐
-            │ satisfaction ┆ Male (A)   ┆ Female (B) │
-            │ ---          ┆ ---        ┆ ---        │
-            │ str          ┆ str        ┆ str        │
-            ╞══════════════╪════════════╪════════════╡
-            │ Satisfied    ┆ "42 B"     ┆ "55 A"     │
-            │ Neutral      ┆ "30 "      ┆ "28 "      │
-            │ Dissatisfied ┆ "18 "      ┆ "12 "      │
-            └──────────────┴────────────┴────────────┘
-        }
+        >>> df = polars.DataFrame(
+            {
+                "gender": ["Male", "Female", "Male"],
+                "yob": [2000, 1999, 1998],
+                "hobby": ["Sport;Book", "Sport;Movie", "Movie"],
+                "animal_1": ["Cat", "", "Cat"],
+                "animal_2": ["Dog", "Dog", ""],
+            }
+        )
+
+        >>> survey = read_polars(df, auto_detect=True)
+        >>> crosstab(survey["gender"], survey["hobby"], aggfunc="count")
+        {'Total': shape: (3, 3)
+        ┌───────┬──────────┬────────────┐
+        │ hobby ┆ Male (A) ┆ Female (B) │
+        │ ---   ┆ ---      ┆ ---        │
+        │ str   ┆ str      ┆ str        │
+        ╞═══════╪══════════╪════════════╡
+        │ Book  ┆ 1        ┆ 0          │
+        │ Movie ┆ 1        ┆ 1          │
+        │ Sport ┆ 1        ┆ 1          │
+        └───────┴──────────┴────────────┘}
 
         Percentage crosstab:
 
-        >>> crosstab(gender, satisfaction, aggfunc="percent")
-        {
-            'Total': shape: (3, 3)
-            ┌──────────────┬────────────┬────────────┐
-            │ satisfaction ┆ Male (A)   ┆ Female (B) │
-            │ ---          ┆ ---        ┆ ---        │
-            │ str          ┆ str        ┆ str        │
-            ╞══════════════╪════════════╪════════════╡
-            │ Satisfied    ┆ "0.467 B"  ┆ "0.579 A"  │
-            │ Neutral      ┆ "0.333 "   ┆ "0.295 "   │
-            │ Dissatisfied ┆ "0.200 "   ┆ "0.126 "   │
-            └──────────────┴────────────┴────────────┘
-        }
+        >>> crosstab(survey["gender"], survey["hobby"], aggfunc="percent")
+        {'Total': shape: (3, 3)
+        ┌───────┬──────────┬────────────┐
+        │ hobby ┆ Male (A) ┆ Female (B) │
+        │ ---   ┆ ---      ┆ ---        │
+        │ str   ┆ str      ┆ str        │
+        ╞═══════╪══════════╪════════════╡
+        │ Book  ┆ 0.5      ┆ 0.0        │
+        │ Movie ┆ 0.5      ┆ 1.0        │
+        │ Sport ┆ 0.5      ┆ 1.0        │
+        └───────┴──────────┴────────────┘}
 
         Numeric aggregation (mean):
 
-        >>> crosstab(gender, age, aggfunc="mean")
-        {
-            'Total': shape: (1, 3)
-            ┌─────┬──────────┬──────────┐
-            │ age ┆ Male     ┆ Female   │
-            │ --- ┆ ---      ┆ ---      │
-            │ str ┆ str      ┆ str      │
-            ╞═════╪══════════╪══════════╡
-            │ age ┆ "34.2 B" ┆ "29.8 A" │
-            └─────┴──────────┴──────────┘
-        }
+        >>> crosstab(survey["gender"], survey["hobby"], aggfunc="mean")
+        {'Total': shape: (1, 3)
+        ┌───────┬────────┬──────┐
+        │ hobby ┆ Female ┆ Male │
+        │ ---   ┆ ---    ┆ ---  │
+        │ str   ┆ str    ┆ str  │
+        ╞═══════╪════════╪══════╡
+        │ hobby ┆ 2.5    ┆ 2.0  │
+        └───────┴────────┴──────┘}
 
         With filter (multiple segments):
 
-        >>> crosstab(gender, satisfaction, filter=region)
-        {
-            'North': shape: (3, 3)
-            ┌──────────────┬────────────┬────────────┐
-            │ satisfaction ┆ Male (A)   ┆ Female (B) │
-            ╞══════════════╪════════════╪════════════╡
-            │ Satisfied    ┆ "20 "      ┆ "25 "      │
-            │ Neutral      ┆ "15 "      ┆ "12 "      │
-            │ Dissatisfied ┆ "10 "      ┆ "8 "       │
-            └──────────────┴────────────┴────────────┘,
-
-            'South': shape: (3, 3)
-            ┌──────────────┬────────────┬────────────┐
-            │ satisfaction ┆ Male (A)   ┆ Female (B) │
-            ╞══════════════╪════════════╪════════════╡
-            │ Satisfied    ┆ "22 "      ┆ "30 "      │
-            │ Neutral      ┆ "15 "      ┆ "16 "      │
-            │ Dissatisfied ┆ "8 "       ┆ "4 "       │
-            └──────────────┴────────────┴────────────┘
-        }
+        >>> crosstab(survey["gender"], survey["yob"], survey["hobby"], aggfunc="mean")
+        {'Book': shape: (1, 2)
+        ┌─────┬─────────┐
+        │ yob ┆ Male    │
+        │ --- ┆ ---     │
+        │ str ┆ str     │
+        ╞═════╪═════════╡
+        │ yob ┆ 2000.0  │
+        └─────┴─────────┘, 'Movie': shape: (1, 3)
+        ┌─────┬─────────┬─────────┐
+        │ yob ┆ Female  ┆ Male    │
+        │ --- ┆ ---     ┆ ---     │
+        │ str ┆ str     ┆ str     │
+        ╞═════╪═════════╪═════════╡
+        │ yob ┆ 1999.0  ┆ 1998.0  │
+        └─────┴─────────┴─────────┘, 'Sport': shape: (1, 3)
+        ┌─────┬─────────┬─────────┐
+        │ yob ┆ Female  ┆ Male    │
+        │ --- ┆ ---     ┆ ---     │
+        │ str ┆ str     ┆ str     │
+        ╞═════╪═════════╪═════════╡
+        │ yob ┆ 1999.0  ┆ 2000.0  │
+        └─────┴─────────┴─────────┘}
     """
     crosstab_executor = CrosstabExecutor(column, row, filter)
     return crosstab_executor.run(aggfunc, alpha)
