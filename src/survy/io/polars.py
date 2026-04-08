@@ -10,6 +10,100 @@ from survy.utils.functions import parse_id
 
 @dataclass
 class PolarReader:
+    """
+    Parse a Polars DataFrame into survey-ready variables.
+
+    This class reads column-oriented survey data and converts it into
+    structured variable formats suitable for building a `Survey`.
+
+    It supports three variable types:
+
+    - **normal**:
+        Single-response variables (e.g. gender, age)
+
+    - **multi**:
+        Multi-select variables stored across multiple columns
+        (e.g. Q1_multi_1, Q1_multi_2)
+
+    - **multi_compact**:
+        Multi-select variables stored as delimited strings
+        (e.g. "A;B;C")
+
+    Parsing priority:
+        1. If column id is in `compact_ids` → multi_compact
+        2. If `auto_detect=True` and separator found → multi_compact
+        3. If column name matches multi pattern → multi
+        4. Otherwise → normal
+
+    Args:
+        compact_ids (list[str]):
+            Explicit variable IDs treated as compact multi-select.
+
+        compact_separator (str):
+            Delimiter used for compact multi-select values.
+
+        auto_detect (bool):
+            If True, automatically detect compact multi-select columns
+            based on presence of separator in values.
+
+        name_pattern (str):
+            Pattern used to parse column names into:
+            - base variable id
+            - optional multi suffix
+
+    Examples:
+
+        Input DataFrame:
+
+            df =
+                shape: (3, 3)
+                ┌────────┬──────────────┬────────┐
+                │ gender ┆ Q1_1         ┆ hobby  │
+                │ ---    ┆ ---          ┆ ---    │
+                │ str    ┆ str          ┆ str    │
+                ╞════════╪══════════════╪════════╡
+                │ M      ┆ A            ┆ A;B    │
+                │ F      ┆ null         ┆ B      │
+                │ F      ┆ B            ┆ null   │
+                └────────┴──────────────┴────────┘
+
+        Usage:
+
+            reader = PolarReader(
+                compact_ids=["hobby"],
+                compact_separator=";",
+                auto_detect=False,
+                name_pattern="id(_multi)?"
+            )
+            reader.read_df(df)
+            survey = reader.to_survey()
+
+        Parsed variables:
+
+            gender →
+                ["M", "F", "F"]
+
+            Q1 →
+                [
+                    ["A"],
+                    [],
+                    ["B"]
+                ]
+
+            hobby →
+                [
+                    ["A", "B"],
+                    ["B"],
+                    []
+                ]
+
+    Notes:
+        - Empty strings ("") are converted to null
+        - Multi-select values are always sorted and deduplicated
+        - Missing multi values are represented as empty lists []
+        - Variables with no responses may be excluded in `to_survey()`
+    """
+
     compact_ids: list[str]
     compact_separator: str
     auto_detect: bool
@@ -146,6 +240,65 @@ def read_polars(
 
     Returns:
         Survey: Parsed survey object.
+
+    Examples:
+        Basic input:
+
+            raw_df =
+                shape: (3, 2)
+                ┌────────┬──────────┐
+                │ gender ┆ hobby    │
+                │ ---    ┆ ---      │
+                │ str    ┆ str      │
+                ╞════════╪══════════╡
+                │ M      ┆ A;B      │
+                │ F      ┆ B        │
+                │ F      ┆ null     │
+                └────────┴──────────┘
+
+            survey = read_polars(raw_df, compact_ids=["hobby"])
+
+        Parsed result:
+
+            gender → ["M", "F", "F"]
+
+            hobby →
+                [
+                    ["A", "B"],
+                    ["B"],
+                    []
+                ]
+
+
+        Multi-column input:
+
+            raw_df =
+                shape: (3, 2)
+                ┌──────────────┬──────────────┐
+                │ Q1_1         ┆ Q1_2         │
+                │ ---          ┆ ---          │
+                │ str          ┆ str          │
+                ╞══════════════╪══════════════╡
+                │ A            ┆ B            │
+                │ null         ┆ C            │
+                │ B            ┆ null         │
+                └──────────────┴──────────────┘
+
+            survey = read_polars(raw_df)
+
+        Parsed result:
+
+            Q1 →
+                [
+                    ["A", "B"],
+                    ["C"],
+                    ["B"]
+                ]
+
+    Notes:
+        - Empty strings ("") are converted to null
+        - Multi-select values are always sorted
+        - Columns with no responses may be excluded
     """
     compact_ids = compact_ids or []
     reader = PolarReader(compact_ids, compact_separator, auto_detect, name_pattern)

@@ -116,7 +116,6 @@ def test_crosstab_with_filter(
     crosstab = survy.crosstab(
         survey[column_id], survey[row_id], survey[filter_id], aggfunc
     )
-    print(crosstab)
     for key in survey[filter_id].value_indices.keys():
         assert key in crosstab
         assert crosstab[key].height > 0
@@ -141,7 +140,7 @@ def test_survey_export_csv(survey: Survey, tmp_path: Path):
 
     assert (tmp_path / "test_survey_data.csv").exists()
     assert (tmp_path / "test_survey_variables_info.csv").exists()
-    assert (tmp_path / "test_survey_options_info.csv").exists()
+    assert (tmp_path / "test_survey_values_info.csv").exists()
 
 
 def test_survey_export_json(survey: Survey, tmp_path: Path):
