@@ -258,6 +258,19 @@ class Variable:
                 - value name: the category, option, or numeric value
                 - "count": number of respondents for that value
                 - "proportion": count divided by total number of respondents
+
+        Example:
+            >>> v = Variable(polars.Series("color", ["red", "blue", "red]))
+            >>> v.frequencies
+            shape: (2, 3)
+            ┌──────┬───────┬────────────┐
+            │ Q1   ┆ count ┆ proportion │
+            │ ---  ┆ ---   ┆ ---        │
+            │ str  ┆ u32   ┆ f64        │
+            ╞══════╪═══════╪════════════╡
+            │ blue ┆ 1     ┆ 0.333333   │
+            │ red  ┆ 2     ┆ 0.666667   │
+            └──────┴───────┴────────────┘
         """
         return self.strategy.frequencies
 
@@ -268,6 +281,14 @@ class Variable:
 
         Returns:
             str: SPSS syntax string.
+
+        Example:
+            >>> v = Variable(polars.Series("color", ["red", "blue", "red]))
+            >>> v.sps
+            VARIABLE LABELS Q1 'Q1'.
+            VALUE LABELS Q1 1 'blue'
+            2 'red'.
+            VARIABLE LEVEL Q1 (NOMINAL).
         """
         return self.strategy.get_sps(self.label)
 
@@ -283,5 +304,73 @@ class Variable:
 
         Returns:
             polars.DataFrame: Processed DataFrame.
+
+        Example:
+            Select Variable:
+            >>> v = Variable(polars.Series("color", ["red", "blue", "red]))
+            >>> v.get_df("text")
+            shape: (3, 1)
+            ┌──────┐
+            │ Q1   │
+            │ ---  │
+            │ str  │
+            ╞══════╡
+            │ red  │
+            │ blue │
+            │ red  │
+            └──────┘
+
+            >>> v = Variable(polars.Series("color", ["red", "blue", "red]))
+            >>> v.get_df("number")
+            shape: (3, 1)
+            ┌─────┐
+            │ Q1  │
+            │ --- │
+            │ i64 │
+            ╞═════╡
+            │ 2   │
+            │ 1   │
+            │ 2   │
+            └─────┘
+
+            Multiselect Variable:
+
+            >>> v = Variable(polars.Series("color", ["red", "blue", "red]))
+            >>> v.get_df("compact")
+            ┌───────────────────┐
+            │ Q1                │
+            │ ---               │
+            │ list[str]         │
+            ╞═══════════════════╡
+            │ ["red", "blue"]   │
+            │ ["red"]           │
+            │ ["red", "yellow"] │
+            └───────────────────┘
+
+            >>> v = Variable(polars.Series("color", ["red", "blue", "red]))
+            >>> v.get_df("text")
+            shape: (3, 3)
+            ┌──────┬──────┬────────┐
+            │ Q1_1 ┆ Q1_2 ┆ Q1_3   │
+            │ ---  ┆ ---  ┆ ---    │
+            │ str  ┆ str  ┆ str    │
+            ╞══════╪══════╪════════╡
+            │ blue ┆ red  ┆ null   │
+            │ null ┆ red  ┆ null   │
+            │ null ┆ red  ┆ yellow │
+            └──────┴──────┴────────┘
+
+            >>> v = Variable(polars.Series("color", ["red", "blue", "red]))
+            >>> v.get_df("number")
+            shape: (3, 3)
+            ┌──────┬──────┬──────┐
+            │ Q1_1 ┆ Q1_2 ┆ Q1_3 │
+            │ ---  ┆ ---  ┆ ---  │
+            │ i8   ┆ i8   ┆ i8   │
+            ╞══════╪══════╪══════╡
+            │ 1    ┆ 1    ┆ 0    │
+            │ 0    ┆ 1    ┆ 0    │
+            │ 0    ┆ 1    ┆ 1    │
+            └──────┴──────┴──────┘
         """
         return self.strategy.get_df(dtype=dtype)

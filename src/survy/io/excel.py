@@ -48,43 +48,40 @@ def read_excel(
         FileTypeError:
             If the input file is not a `.xlsx`.
 
+
     Examples:
+        Input CSV (`survey.xlsx`):
+        ┌────────┬──────┬─────────────┬──────────┬──────────┐
+        │ gender ┆ yob  ┆ hobby       ┆ animal_1 ┆ animal_2 │
+        ╞════════╪══════╪═════════════╪══════════╪══════════╡
+        │ Male   ┆ 2000 ┆ Sport;Book  ┆ Cat      ┆ Dog      │
+        │ Female ┆ 1999 ┆ Sport;Movie ┆          ┆ Dog      │
+        │ Male   ┆ 1998 ┆ Movie       ┆ Cat      ┆          │
+        └────────┴──────┴─────────────┴──────────┴──────────┘
 
-        Input Excel (`survey.xlsx`):
-            ┌────────┬──────┬──────┬─────┐
-            │ gender ┆ Q1_1 ┆ Q1_2 ┆ Q2  │
-            ╞════════╪══════╪══════╪═════╡
-            │ M      ┆ A    ┆ B    ┆ X;Y │
-            │ F      ┆      ┆ B    ┆ X   │
-            │ F      ┆ A    ┆      ┆ Y;Z │
-            └────────┴──────┴──────┴─────┘
-
-        Usage:
-
-            survey = read_excel(
+        >>> survey = read_excel(
                 "survey.xlsx",
                 compact_ids=["hobby"]
             )
 
+        >>> print(survey)
+        Survey (4 variables)
+            Variable(id=gender, label=gender, value_indices={'Female': 1, 'Male': 2}, base=3)
+            Variable(id=yob, label=yob, value_indices={}, base=3)
+            Variable(id=hobby, label=hobby, value_indices={'Movie': 1, 'Sport;Book': 2, 'Sport;Movie': 3}, base=3)
+            Variable(id=animal, label=animal, value_indices={'Cat': 1, 'Dog': 2}, base=3)
 
-        Parsed result:
-
-            gender →
-                ["M", "F", "F"]
-
-            Q1 →
-                [
-                    ["A", "B"],
-                    ["B"],
-                    ["A"]
-                ]
-
-            Q2 →
-                [
-                    ["X", "Y"],
-                    ["X"],
-                    ["Y", "Z"]
-                ]
+        >>> print(survey.get_df())
+        shape: (3, 4)
+        ┌────────┬──────┬────────────────────┬────────────────┐
+        │ gender ┆ yob  ┆ hobby              ┆ animal         │
+        │ ---    ┆ ---  ┆ ---                ┆ ---            │
+        │ str    ┆ i64  ┆ list[str]          ┆ list[str]      │
+        ╞════════╪══════╪════════════════════╪════════════════╡
+        │ Male   ┆ 2000 ┆ ["Book", "Sport"]  ┆ ["Cat", "Dog"] │
+        │ Female ┆ 1999 ┆ ["Movie", "Sport"] ┆ ["Dog"]        │
+        │ Male   ┆ 1998 ┆ ["Movie"]          ┆ ["Cat"]        │
+        └────────┴──────┴────────────────────┴────────────────┘
 
     Notes:
         - Empty strings in Excel are treated as null values
@@ -158,60 +155,57 @@ def to_excel(
             If files cannot be written.
 
     Examples:
-
-        Given Survey data:
-
-            gender →
-                ["M", "F", "F"]
-
-            hobby →
-                [
-                    ["A", "B"],
-                    ["B"],
-                    []
-                ]
-
+        >>> print(survey.get_df())
+        shape: (3, 4)
+        ┌────────┬──────┬────────────────────┬────────────────┐
+        │ gender ┆ yob  ┆ hobby              ┆ animal         │
+        │ ---    ┆ ---  ┆ ---                ┆ ---            │
+        │ str    ┆ i64  ┆ list[str]          ┆ list[str]      │
+        ╞════════╪══════╪════════════════════╪════════════════╡
+        │ Male   ┆ 2000 ┆ ["Book", "Sport"]  ┆ ["Cat", "Dog"] │
+        │ Female ┆ 1999 ┆ ["Movie", "Sport"] ┆ ["Dog"]        │
+        │ Male   ┆ 1998 ┆ ["Movie"]          ┆ ["Cat"]        │
+        └────────┴──────┴────────────────────┴────────────────┘
 
         Export in compact mode:
-
-            to_excel(survey, path=".", name="survey", compact=True)
-
+        >>> to_excel(survey, path=".", name="survey", compact=True)
 
         Output: `survey_data.xlsx`
-            ┌────────┬───────┐
-            │ gender ┆ hobby │
-            ╞════════╪═══════╡
-            │ M      ┆ A;B   │
-            │ F      ┆ B     │
-            │ F      ┆       │
-            └────────┴───────┘
+        ┌────────┬──────┬────────────────────┬────────────────┐
+        │ gender ┆ yob  ┆ hobby              ┆ animal         │
+        ╞════════╪══════╪════════════════════╪════════════════╡
+        │ Male   ┆ 2000 ┆ Book,Sport         ┆ Cat,Dog        │
+        │ Female ┆ 1999 ┆ Movie,Sport        ┆ Dog            │
+        │ Male   ┆ 1998 ┆ Movie              ┆ Cat            │
+        └────────┴──────┴────────────────────┴────────────────┘
 
         Export in non-compact mode:
+        >>> to_csv(survey, compact=False)
 
-            to_excel(survey, compact=False)
-
-
-        Output: `survey_data.excel`
-
-            ┌────────┬─────────┬─────────┐
-            │ gender ┆ hobby_1 ┆ hobby_2 │
-            ╞════════╪═════════╪═════════╡
-            │ M      ┆ A       ┆ B       │
-            │ F      ┆         ┆ B       │
-            │ F      ┆         ┆         │
-            └────────┴─────────┴─────────┘
+        Output: `survey_data.xlsx`
+        ┌────────┬──────┬─────────┬─────────┬─────────┬──────────┬──────────┐
+        │ gender ┆ yob  ┆ hobby_1 ┆ hobby_2 ┆ hobby_3 ┆ animal_1 ┆ animal_2 │
+        ╞════════╪══════╪═════════╪═════════╪═════════╪══════════╪══════════╡
+        │ Male   ┆ 2000 ┆ Book    ┆ null    ┆ Sport   ┆ Cat      ┆ Dog      │
+        │ Female ┆ 1999 ┆ null    ┆ Movie   ┆ Sport   ┆ null     ┆ Dog      │
+        │ Male   ┆ 1998 ┆ null    ┆ Movie   ┆ null    ┆ Cat      ┆ null     │
+        └────────┴──────┴─────────┴─────────┴─────────┴──────────┴──────────┘
 
         Variables metadata (`survey_variables_info.xlsx`):
-
             gender,SINGLE,gender
+            yob,NUMBER,yob
             hobby,MULTISELECT,hobby
+            animal,MULTISELECT,animal
 
 
         Values mapping (`survey_values_info.xlsx`):
-
-            hobby,A,1
-            hobby,B,2
-
+            gender,Male,1
+            gender,Female,2
+            hobby,Book,1
+            hobby,Movie,2
+            hobby,Sport,3
+            animal,Cat,1
+            animal,Dog,2
 
     Notes:
         - Compact mode is recommended for storage and interoperability

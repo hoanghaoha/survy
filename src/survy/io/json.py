@@ -14,24 +14,6 @@ def read_json(path: str | Path) -> Survey:
     list of variable definitions. Each variable entry is used to construct
     a :class:`Variable` instance and populate a :class:`Survey`.
 
-    Expected JSON structure::
-
-        {
-            "variables": [
-                {
-                    "id": "age",
-                    "data": [25, 30, 22],
-                    "label": "Age of respondent",
-                    "value_indices": null
-                },
-                {
-                    "id": "gender",
-                    "data": [1, 2, 1],
-                    "label": "Gender",
-                    "value_indices": {"1": "Male", "2": "Female"}
-                }
-            ]
-        }
 
     Args:
         path (str | pathlib.Path):
@@ -59,11 +41,45 @@ def read_json(path: str | Path) -> Survey:
         - ``value_indices`` is only assigned if it is truthy (e.g., not None or empty).
 
     Example:
-        >>> survey = read_json("survey.json")
-        >>> len(survey.variables)
-        2
-        >>> survey.variables[0].label
-        'Age of respondent'
+        >>> with open("survey.json", "r") as f:
+            data = json.load(f)
+            print(data)
+            {
+                "variables": [
+                    {
+                        "id": "gender",
+                        "data": ["Male", "Female", "Male"],
+                        "label": "",
+                        "value_indices": {"Female": 1, "Male": 2},
+                    },
+                    {"id": "yob", "data": [2000, 1999, 1998], "label": "", "value_indices": {}},
+                    {
+                        "id": "hobby",
+                        "data": [["Book", "Sport"], ["Movie", "Sport"], ["Movie"]],
+                        "label": "",
+                        "value_indices": {"Book": 1, "Movie": 2, "Sport": 3},
+                    },
+                    {
+                        "id": "animal",
+                        "data": [["Cat", "Dog"], ["Dog"], ["Cat"]],
+                        "label": "",
+                        "value_indices": {"Cat": 1, "Dog": 2},
+                    },
+                ]
+            }
+
+            >>> survey = read_json("survey.json")
+            >>> survey.get_df()
+            shape: (3, 4)
+            ┌────────┬──────┬────────────────────┬────────────────┐
+            │ gender ┆ yob  ┆ hobby              ┆ animal         │
+            │ ---    ┆ ---  ┆ ---                ┆ ---            │
+            │ str    ┆ i64  ┆ list[str]          ┆ list[str]      │
+            ╞════════╪══════╪════════════════════╪════════════════╡
+            │ Male   ┆ 2000 ┆ ["Book", "Sport"]  ┆ ["Cat", "Dog"] │
+            │ Female ┆ 1999 ┆ ["Movie", "Sport"] ┆ ["Dog"]        │
+            │ Male   ┆ 1998 ┆ ["Movie"]          ┆ ["Cat"]        │
+            └────────┴──────┴────────────────────┴────────────────┘
     """
     with open(path, "r") as f:
         data = json.load(f)
@@ -115,23 +131,44 @@ def to_json(
         - Non-ASCII characters are preserved (``ensure_ascii=False``).
 
     Example:
-        >>> from pathlib import Path
-        >>> survey = Survey(variables=[
-        ...     Variable(series=polars.Series("age", [25, 30]))
-        ... ])
-        >>> survey.variables[0].label = "Age"
-        >>> to_json(survey, path=Path("./data"), name="my_survey")
+        >>> survey.get_df()
+        shape: (3, 4)
+        ┌────────┬──────┬────────────────────┬────────────────┐
+        │ gender ┆ yob  ┆ hobby              ┆ animal         │
+        │ ---    ┆ ---  ┆ ---                ┆ ---            │
+        │ str    ┆ i64  ┆ list[str]          ┆ list[str]      │
+        ╞════════╪══════╪════════════════════╪════════════════╡
+        │ Male   ┆ 2000 ┆ ["Book", "Sport"]  ┆ ["Cat", "Dog"] │
+        │ Female ┆ 1999 ┆ ["Movie", "Sport"] ┆ ["Dog"]        │
+        │ Male   ┆ 1998 ┆ ["Movie"]          ┆ ["Cat"]        │
+        └────────┴──────┴────────────────────┴────────────────┘
 
-        This creates a file ``./data/my_survey.json`` with content like::
+        >>> to_json(survey, "/data", name="survey")
 
+        >>> with open("data/survey.json", "r") as f:
+            data = json.load(f)
+            print(data)
             {
                 "variables": [
                     {
-                        "id": "age",
-                        "data": [25, 30],
-                        "label": "Age",
-                        "value_indices": null
-                    }
+                        "id": "gender",
+                        "data": ["Male", "Female", "Male"],
+                        "label": "",
+                        "value_indices": {"Female": 1, "Male": 2},
+                    },
+                    {"id": "yob", "data": [2000, 1999, 1998], "label": "", "value_indices": {}},
+                    {
+                        "id": "hobby",
+                        "data": [["Book", "Sport"], ["Movie", "Sport"], ["Movie"]],
+                        "label": "",
+                        "value_indices": {"Book": 1, "Movie": 2, "Sport": 3},
+                    },
+                    {
+                        "id": "animal",
+                        "data": [["Cat", "Dog"], ["Dog"], ["Cat"]],
+                        "label": "",
+                        "value_indices": {"Cat": 1, "Dog": 2},
+                    },
                 ]
             }
     """
