@@ -1,5 +1,6 @@
 from typing import TypeAlias, Literal, Union
 from functools import reduce
+import numpy
 import polars
 import polars.selectors as cs
 from polars._typing import PivotAgg
@@ -18,6 +19,13 @@ NumAggFunc: TypeAlias = PivotAgg
 
 AggFunc: TypeAlias = Union[CatAggFunc, NumAggFunc]
 """General aggregation type accepted by crosstab operations."""
+
+
+def _get_row(row: Variable, column: Variable) -> Variable:
+    if row.id == column.id:
+        return Variable(series=polars.Series(f"{row.id}#1", row.series.to_list()))
+    else:
+        return row
 
 
 def _get_filter(filter: Variable | None, len_: int) -> Variable:
@@ -166,7 +174,7 @@ class CrosstabExecutor:
     ) -> None:
         assert column.len == row.len
         self.column = column
-        self.row = row
+        self.row = _get_row(row, column)
         self.filter = _get_filter(filter, column.len)
 
     def get_df(self, row_as_num: bool) -> polars.DataFrame:
@@ -191,9 +199,16 @@ class CrosstabExecutor:
         row_df = _get_var_df(self.row, as_num=row_as_num)
         filter_df = _get_var_df(self.filter, as_num=False)
 
-        return reduce(
-            lambda left, right: left.join(right, on="ID", how="left"),
-            [column_df, row_df, filter_df],
+        return (
+            reduce(
+                lambda left, right: left.join(right, on="ID", how="inner"),
+                [column_df, row_df, filter_df],
+            )
+            .filter(
+                polars.col(self.column.id).is_not_null(),
+                polars.col(self.row.id).is_not_null(),
+            )
+            .cast({self.column.id: polars.String})
         )
 
     def _pivot_counts(self, filter_by: str) -> polars.DataFrame:
@@ -222,12 +237,19 @@ class CrosstabExecutor:
         df = self.get_df(row_as_num=False).filter(
             polars.col(self.filter.id) == filter_by
         )
-        return df.pivot(
-            on=self.column.id,
-            index=self.row.id,
-            values="ID",
-            aggregate_function=polars.element().n_unique(),
-        ).sort(self.row.id)
+        pivot = (
+            df.pivot(
+                on=self.column.id,
+                index=self.row.id,
+                values="ID",
+                aggregate_function=polars.element().n_unique(),
+            )
+            .filter(polars.col(self.row.id).is_not_null())
+            .sort(self.row.id)
+            .cast({self.row.id: polars.String})
+        )
+
+        return pivot
 
     def _get_col_total(self, col_name: str) -> int:
         """Look up the total respondent count for a column variable category.
@@ -244,9 +266,9 @@ class CrosstabExecutor:
             >>> self._get_col_total("Unknown")
             0
         """
-        result = self.column.frequencies.filter(polars.col(self.column.id) == col_name)[
-            "count"
-        ]
+        result = self.column.frequencies.filter(
+            polars.col(self.column.id) == str(col_name)
+        )["count"]
         return result[0] if len(result) > 0 else 0
 
     def _sig_test_proportion(
@@ -294,8 +316,14 @@ class CrosstabExecutor:
         """
 
         def _is_sig_diff(count, nobs) -> bool:
-            if any(n == 0 for n in nobs) or any(c == 0 for c in count):
+            if any(n == 0 for n in nobs):
                 return False
+
+            props = [c / n for c, n in zip(count, nobs)]
+
+            if any(p == 0 or p == 1 for p in props):
+                return False
+
             _, p = proportions_ztest(count, nobs)
             return float(p) < alpha
 
@@ -357,9 +385,13 @@ class CrosstabExecutor:
                 .to_list()
             )
 
+        def _is_valid_sample(arr):
+            return len(arr) >= 2 and numpy.var(arr) > 0
+
         def _is_sig_diff(group_a, group_b) -> bool:
-            if len(group_a) < 2 or len(group_b) < 2:
+            if not (_is_valid_sample(group_a) and _is_valid_sample(group_b)):
                 return False
+
             _, p, _ = ttest_ind(group_a, group_b)
             return float(p) < alpha
 
@@ -367,6 +399,7 @@ class CrosstabExecutor:
             polars.col(self.filter.id) == filter_by
         )
         col_names = df[self.column.id].unique().sort().to_list()
+        col_names = [col for col in col_names if col is not None]
 
         sig_labels = [
             "".join(
@@ -377,7 +410,9 @@ class CrosstabExecutor:
             for i, val in enumerate(col_names)
         ]
 
-        return polars.DataFrame({self.column.id: col_names, "sig": sig_labels})
+        return polars.DataFrame(
+            {self.column.id: col_names, "sig": sig_labels},
+        )
 
     def crosstab_count(self, filter_by: str, alpha: float) -> polars.DataFrame:
         """Compute a count-based crosstab with inline significance labels.
