@@ -45,28 +45,30 @@ class SelectStrategy(BaseStrategy):
         return self.series.to_frame()
 
     @property
-    def frequencies(self) -> dict[str, int]:
-        """
-        Compute frequency counts for each category.
-
-        Null values are excluded from the base.
+    def frequencies(self) -> polars.DataFrame:
+        """Frequency counts and proportions for each category.
 
         Returns:
-            dict[str, int]: Mapping of category → count.
-        """
-        df = self.get_df(dtype="text")
-        id = self.series.name
+            A DataFrame with columns:
+                - option name: the selected category label
+                - "count": number of respondents who selected the category
+                - "proportion": count divided by total number of respondents
 
-        result = (
-            df.filter(polars.col(id).is_not_null())
-            .group_by(id)
-            .agg(polars.col(id).count().alias("base"))
-            .rename({id: "option"})
-            .sort("option")
-            .to_dicts()
+        Notes:
+            Null values are excluded from counts but included in the base,
+            so proportions may not sum to 1.
+        """
+        id = self.series.name
+        base = len(self.series)
+        df = (
+            self.get_df(dtype="text")
+            .filter(polars.col(id).is_not_null())[id]
+            .value_counts(name="count")
+            .sort(id)
+            .with_columns((polars.col("count") / base).alias("proportion"))
         )
 
-        return {item["option"]: item["base"] for item in result}
+        return df
 
     def get_sps(self, label: str) -> str:
         """

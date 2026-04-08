@@ -34,15 +34,19 @@ class BaseStrategy(ABC):
 
     @property
     @abstractmethod
-    def frequencies(self) -> dict:
-        """
-        Compute value counts for the question.
+    def frequencies(self) -> polars.DataFrame:
+        """Frequency counts and proportions for each value of the variable.
 
-        Value counts typically represent counts per category/option,
-        depending on the variable type.
+        Subclasses compute this differently based on variable type:
+        - SELECT: counts per category, nulls excluded from counts
+        - MULTISELECT: counts per option after exploding list responses
+        - NUMBER: counts per numeric value, nulls excluded from counts
 
         Returns:
-            dict: Mapping of category/option to count.
+            A DataFrame with columns:
+                - value name: the category, option, or numeric value
+                - "count": number of respondents for that value
+                - "proportion": count divided by total number of respondents
         """
         ...
 

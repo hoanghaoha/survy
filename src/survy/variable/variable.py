@@ -247,12 +247,17 @@ class Variable:
         }
 
     @property
-    def frequencies(self) -> dict[str, int]:
-        """
-        Returns value counts from the strategy.
+    def frequencies(self) -> polars.DataFrame:
+        """Frequency counts and proportions for each value of the variable.
+
+        Delegates to the underlying strategy based on variable type.
+        See the concrete strategy implementations for details.
 
         Returns:
-            dict[str, int]: Value counts.
+            A DataFrame with columns:
+                - value name: the category, option, or numeric value
+                - "count": number of respondents for that value
+                - "proportion": count divided by total number of respondents
         """
         return self.strategy.frequencies
 
