@@ -56,6 +56,7 @@ class NumberStrategy(BaseStrategy):
             self.get_df(dtype="number")
             .filter(polars.col(id).is_not_null())[id]
             .value_counts(name="count")
+            .cast({id: polars.String})
             .sort(id)
             .with_columns((polars.col("count") / base).alias("proportion"))
         )
