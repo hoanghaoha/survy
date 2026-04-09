@@ -209,7 +209,10 @@ class Survey:
                 continue
 
             variable = self[var_id]
-            variable.label = info.get("label", "")
+            label = info.get("label", "")
+
+            if label:
+                variable.label = label
             if not variable.series.dtype.is_numeric():
                 value_indices = info.get("value_indices", {})
                 if value_indices:

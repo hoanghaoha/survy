@@ -2,15 +2,48 @@
 
 All notable changes to this project will be documented in this file.
 
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+---
+
+## [0.2.1] - 2026-04-09
+
+### Added
+
+- **Agent skill (`SKILL.md`)** — a structured reference document designed for LLM-based coding agents, enabling accurate code generation against the `survy` API. The skill covers the full public API surface including reading, modifying, filtering, analyzing, and exporting survey data, with explicit documentation of compact vs wide multiselect formats, JSON I/O schema, and common gotchas.
+- **`references/api_reference.md`** — complete method signatures with all parameters, defaults, and return types for quick agent lookup.
+- **`scripts/validate_survey.py`** — utility script that loads a survey file and reports missing labels or unset `value_indices`.
+- **`scripts/batch_export.py`** — utility script that reads a survey and exports to CSV, Excel, SPSS, and JSON in one pass.
+- **`assets/sample_data.csv`** and **`assets/sample_data_compact.csv`** — sample datasets in wide and compact multiselect formats for testing and demonstration.
+
+### Fixed
+
+- Survey.update() auto set label to "" if not specify.
+
+---
+
+## [0.2.0] - 2026-04-08
+
+### Added
+
+- **Crosstab significance testing** — statistical significance tests are now available as part of crosstab analysis.
+- **Docstrings** — comprehensive docstrings added across the entire public API.
+- **Integration tests** — expanded test suite with integration-level coverage.
+
+### Notes
+
+- The public API remains largely unchanged from `0.1.x` and existing code should continue to work without modification.
+
 ---
 
 ## [0.1.4] - 2026-04-06
 
 ### Added
 
-* __str__ representation for Survey
-* Handle functions for Survey (add, drop, filter, sort)
-* id.setter for Variable
+- `Survey.__str__()` — human-readable string representation for `Survey` objects.
+- `Survey` handle functions — added `add`, `drop`, `filter`, and `sort` operations directly on `Survey`.
+- `Variable.id` setter — `id` is now assignable via a property setter.
 
 ---
 
@@ -18,7 +51,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
-* Only handle label string for spss in utils.spss
+- SPSS label handling — `utils.spss` now correctly processes only string labels, preventing errors on non-string label types.
 
 ---
 
@@ -26,13 +59,13 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-* Variable .__str__() and .replace()
-* auto_detect when read_polars, read_csv, read_excel
+- `Variable.__str__()` and `Variable.replace()` — string representation and value replacement support for `Variable` objects.
+- `auto_detect` parameter — type inference is now available when reading data via `read_polars`, `read_csv`, and `read_excel`.
 
 ### Fixed
 
-* SPSS string error when export
-* Export path/ files name
+- SPSS export — resolved a string encoding error when exporting to SPSS format.
+- Export path handling — corrected file path and filename resolution during export.
 
 ---
 
@@ -40,8 +73,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
-* Fixed PyPI publishing workflow using GitHub Actions
-* Improved CI configuration for automated releases
+- PyPI publishing workflow — resolved an issue with the automated release process using GitHub Actions.
+- CI configuration — improved continuous integration setup for reliable automated releases.
 
 ---
 
@@ -49,18 +82,13 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-* Initial release of `survy`
-* Read survey data from CSV, Excel, JSON, and SPSS
-* Support for compact multiselect format (e.g. `"a;b;c"`)
-* Variable-level API:
-
-  * Labels
-  * Value mappings
-  * Frequencies and base
-* Export to multiple formats
-* Crosstab analysis utility
+- **Initial release of `survy`.**
+- Data ingestion from CSV, Excel, JSON, and SPSS formats.
+- Support for compact multiselect encoding (e.g. `"a;b;c"`).
+- Variable-level API including labels, value mappings, frequencies, and base calculation.
+- Export to multiple output formats.
+- Crosstab analysis utility.
 
 ### Notes
 
-* First public release
-* API may evolve in future versions
+- This is the first public release. The API may evolve in future versions.
