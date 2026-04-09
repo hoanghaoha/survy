@@ -1,0 +1,11 @@
+id,gender,age,Q1,Q2,Q3
+1,Male,25,Satisfied,Email;Chat,Yes
+2,Female,34,Very Satisfied,Email;Phone,No
+3,Male,29,Neutral,Chat,Yes
+4,Female,41,Satisfied,Email;Phone;Chat,Yes
+5,Male,22,Dissatisfied,Phone,No
+6,Female,38,Very Satisfied,Email,Yes
+7,Male,31,Satisfied,Phone;Chat,No
+8,Female,27,Neutral,Email;Chat,Yes
+9,Male,45,Very Satisfied,Email;Phone;Chat,Yes
+10,Female,33,Dissatisfied,Phone,No
