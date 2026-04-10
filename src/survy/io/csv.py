@@ -14,62 +14,114 @@ def read_csv(
     auto_detect: bool = False,
     name_pattern: str = "id(_multi)?",
 ) -> Survey:
-    """
-    Read a CSV file and convert it into a Survey object.
+    """Read a CSV file and convert it into a Survey object.
 
-    This is a convenience wrapper around `read_polars`, allowing users to
-    directly load survey data from a CSV file.
+    This is a convenience wrapper around ``read_polars``, allowing users to
+    directly load survey data from a CSV file. It detects and merges
+    multiselect variables from two possible raw formats:
+
+    **Wide format** — each answer option occupies its own column with a
+    shared prefix and a separator-delimited suffix
+    (e.g. ``hobby_1``, ``hobby_2``). These are detected automatically
+    via ``name_pattern``.
+
+    **Compact format** — all selected answers are stored in a single cell
+    joined by a delimiter (e.g. ``"Sport;Book"``). These must be declared
+    explicitly via ``compact_ids`` or discovered via ``auto_detect``.
+
+    After reading, both formats produce the same internal representation:
+    a ``MULTISELECT`` variable whose data is a sorted list of chosen values
+    per respondent.
 
     Args:
         path (str | Path):
-            Path to the `.csv` file.
+            Path to the ``.csv`` file.
 
         compact_ids (list[str] | None):
-            Variable IDs that should be interpreted as compact multi-select
-            (e.g. "A;B;C").
+            Column IDs to treat as compact multiselect. Each listed column's
+            cell values are split on ``compact_separator`` to recover
+            individual choices. Do not combine with ``auto_detect=True``.
 
-        compact_separator (str, default=";"):
-            Delimiter used for compact multi-select values.
+        compact_separator (str):
+            Delimiter used inside compact multiselect cells.
+            Also used by ``auto_detect`` to scan for compact columns.
 
-        auto_detect (bool, default=False):
-            If True, automatically detect compact multi-select columns based
-            on the presence of the separator in values.
+        auto_detect (bool):
+            If ``True``, every column is scanned for the presence of
+            ``compact_separator`` in its values. Any column containing the
+            separator in at least one cell is treated as compact multiselect.
+            Do not combine with ``compact_ids``.
 
-        name_pattern (str, default="id(_multi)?"):
-            Pattern used to parse column names into:
-            - base variable id
-            - optional multi suffix
+        name_pattern (str):
+            Format template for parsing column names into wide multiselect
+            groups. This is **not** a raw regex — it uses two named tokens:
+
+            - ``id`` — matches the base variable name
+            - ``multi`` — matches the numeric suffix
+
+            The recognized separators between tokens are ``_``, ``.``,
+            and ``:``. The template is converted internally into a regex
+            by ``parse_id()``.
+
+            Examples of how columns are parsed with the default pattern
+            ``"id(_multi)?"``:
+
+            - ``"hobby_1"`` → ``id="hobby"``, ``multi="1"`` (grouped)
+            - ``"hobby_2"`` → ``id="hobby"``, ``multi="2"`` (grouped)
+            - ``"gender"``  → ``id="gender"``, no ``multi`` (normal column)
+
+            To match a different separator convention, change the template::
+
+                # Columns named Q1.1, Q1.2, Q2.1, ...
+                name_pattern="id.multi"
+
+                # Columns named Q1:a, Q1:b, ...
+                name_pattern="id:multi"
 
     Returns:
         Survey:
-            Parsed survey object.
+            Parsed survey object with variables inferred from the CSV data.
 
     Raises:
         FileTypeError:
-            If the input file is not a `.csv`.
-
+            If the input file does not have a ``.csv`` extension.
 
     Examples:
-        Input CSV (`survey.csv`):
-        ┌────────┬──────┬─────────────┬──────────┬──────────┐
-        │ gender ┆ yob  ┆ hobby       ┆ animal_1 ┆ animal_2 │
-        ╞════════╪══════╪═════════════╪══════════╪══════════╡
-        │ Male   ┆ 2000 ┆ Sport;Book  ┆ Cat      ┆ Dog      │
-        │ Female ┆ 1999 ┆ Sport;Movie ┆          ┆ Dog      │
-        │ Male   ┆ 1998 ┆ Movie       ┆ Cat      ┆          │
-        └────────┴──────┴─────────────┴──────────┴──────────┘
+        **Wide format** — detected automatically, no special parameters:
+
+        Input CSV (``data_wide.csv``):
+
+        >>> # gender, yob, hobby_1, hobby_2, hobby_3, animal_1, animal_2
+        >>> # Male,   2000, Book,   ,        Sport,   Cat,      Dog
+        >>> # Female, 1999, ,       Movie,   ,        ,         Dog
+        >>> # Male,   1998, ,       Movie,   ,        Cat,
+
+        >>> survey = read_csv("data_wide.csv")
+
+        **Compact format** — specify compact columns explicitly:
+
+        Input CSV (``data_compact.csv``):
+
+        >>> # gender, yob,  hobby,       animal_1, animal_2
+        >>> # Male,   2000, Sport;Book,  Cat,      Dog
+        >>> # Female, 1999, Sport;Movie, ,         Dog
+        >>> # Male,   1998, Movie,       Cat,
 
         >>> survey = read_csv(
-                "survey.csv",
-                compact_ids=["hobby"]
-            )
+        ...     "data_compact.csv",
+        ...     compact_ids=["hobby"],
+        ...     compact_separator=";",
+        ... )
 
-        >>> print(survey)
-        Survey (4 variables)
-            Variable(id=gender, label=gender, value_indices={'Female': 1, 'Male': 2}, base=3)
-            Variable(id=yob, label=yob, value_indices={}, base=3)
-            Variable(id=hobby, label=hobby, value_indices={'Movie': 1, 'Sport;Book': 2, 'Sport;Movie': 3}, base=3)
-            Variable(id=animal, label=animal, value_indices={'Cat': 1, 'Dog': 2}, base=3)
+        **Auto-detect** compact columns by scanning for the separator:
+
+        >>> survey = read_csv(
+        ...     "data_compact.csv",
+        ...     auto_detect=True,
+        ...     compact_separator=";",
+        ... )
+
+        All approaches produce the same result:
 
         >>> print(survey.get_df())
         shape: (3, 4)
@@ -84,11 +136,14 @@ def read_csv(
         └────────┴──────┴────────────────────┴────────────────┘
 
     Notes:
-        - Empty strings in CSV are treated as null values
-        - Multi-select columns can be:
-            • spread across multiple columns (Q1_1, Q1_2)
-            • stored as compact strings ("A;B")
-        - Column parsing behavior follows `read_polars`
+        - Empty strings (``""``) in the CSV are converted to ``None``.
+        - Multiselect values are always sorted alphabetically within each row.
+        - Columns with no valid responses are excluded by default.
+        - Do not combine ``auto_detect=True`` with ``compact_ids`` in the
+          same call — use one approach or the other.
+        - ``name_pattern`` separators (``_``, ``.``, ``:``) are defined in
+          ``survy.separator.SEPARATORS``.
+        - All column parsing behavior is delegated to ``read_polars``.
     """
     if not isinstance(path, Path):
         path = Path(path)
