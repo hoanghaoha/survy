@@ -143,6 +143,11 @@ def read_excel(
           same call — use one approach or the other.
         - ``name_pattern`` separators (``_``, ``.``, ``:``) are defined in
           ``survy.separator.SEPARATORS``.
+        - Column names must not contain more than one of these separators.
+          Names like ``"my.var_1"`` are ambiguous and may cause
+          ``parse_id()`` to fail or produce incorrect grouping. Rename
+          such columns before loading (e.g. ``"myvar_1"`` or
+          ``"my@var_1"``).
         - All column parsing behavior is delegated to ``read_polars``.
     """
     if not isinstance(path, Path):
