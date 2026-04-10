@@ -126,38 +126,96 @@ def read_polars(
     name_pattern: str = "id(_multi)?",
     exclude_null: bool = True,
 ) -> Survey:
-    """
-    Convert a Polars DataFrame into a Survey object.
+    """Convert a Polars DataFrame into a Survey object.
 
-    This is the main entry point for reading survey data.
+    This is the main entry point for reading survey data that is already
+    loaded in memory as a Polars DataFrame. It detects and merges
+    multiselect variables from two possible raw formats:
+
+    **Wide format** — each answer option occupies its own column with a
+    shared prefix and a separator-delimited numeric suffix
+    (e.g. ``hobby_1``, ``hobby_2``). These are detected automatically
+    via ``name_pattern``.
+
+    **Compact format** — all selected answers are stored in a single cell
+    joined by a delimiter (e.g. ``"Sport;Book"``). These must be declared
+    explicitly via ``compact_ids`` or discovered via ``auto_detect``.
+
+    After reading, both formats produce the same internal representation:
+    a ``MULTISELECT`` variable whose data is a sorted list of chosen values
+    per respondent.
 
     Args:
-        raw_df (polars.DataFrame): Input data.
+        raw_df (polars.DataFrame):
+            Input data. Each column becomes a variable or is merged into
+            a multiselect variable depending on the detection parameters.
+
         compact_ids (list[str] | None):
-            IDs of variables using compact multi-select encoding.
+            Column IDs to treat as compact multiselect. Each listed column's
+            cell values are split on ``compact_separator`` to recover
+            individual choices. Do not combine with ``auto_detect=True``.
+
         compact_separator (str):
-            Separator for compact multi-select values.
+            Delimiter used inside compact multiselect cells.
+            Also used by ``auto_detect`` to scan for compact columns.
+
         auto_detect (bool):
-            Auto parse multi-select if data have compact_separator.
+            If ``True``, every column is scanned for the presence of
+            ``compact_separator`` in its values. Any column containing the
+            separator in at least one cell is treated as compact multiselect.
+            Do not combine with ``compact_ids``.
+
         name_pattern (str):
-            Pattern for parsing column names into id/multi components.
+            Format template for parsing column names into wide multiselect
+            groups. This is **not** a raw regex — it uses two named tokens:
+
+            - ``id`` — matches the base variable name
+            - ``multi`` — matches the numeric suffix
+
+            The recognized separators between tokens are ``_``, ``.``,
+            and ``:``. The template is converted internally into a regex
+            by ``parse_id()``.
+
+            Examples of how columns are parsed with the default pattern
+            ``"id(_multi)?"``:
+
+            - ``"hobby_1"`` → ``id="hobby"``, ``multi="1"`` (grouped)
+            - ``"hobby_2"`` → ``id="hobby"``, ``multi="2"`` (grouped)
+            - ``"gender"``  → ``id="gender"``, no ``multi`` (normal column)
+
+            To match a different separator convention, change the template::
+
+                # Columns named Q1.1, Q1.2, Q2.1, ...
+                name_pattern="id.multi"
+
+                # Columns named Q1:a, Q1:b, ...
+                name_pattern="id:multi"
+
         exclude_null (bool):
-            Default True, exclude Null columns or Empty List columns
+            If ``True`` (default), columns where all values are null or
+            all multiselect lists are empty are dropped from the resulting
+            Survey with a warning. Set to ``False`` to keep them.
 
     Returns:
-        Survey: Parsed survey object.
+        Survey: Parsed survey object with variables inferred from the
+        input DataFrame.
+
+    Raises:
+        Warning:
+            If ``exclude_null=True`` and a column has no valid responses.
 
     Examples:
-        >>> df = polars.DataFrame(
-                    {
-                        "gender": ["Male", "Female", "Male"],
-                        "yob": [2000, 1999, 1998],
-                        "hobby": ["Sport;Book", "Sport;Movie", "Movie"],
-                        "animal_1": ["Cat", "", "Cat"],
-                        "animal_2": ["Dog", "Dog", ""],
-                    }
-                )
+        **Wide + compact mixed input:**
 
+        >>> df = polars.DataFrame(
+        ...     {
+        ...         "gender": ["Male", "Female", "Male"],
+        ...         "yob": [2000, 1999, 1998],
+        ...         "hobby": ["Sport;Book", "Sport;Movie", "Movie"],
+        ...         "animal_1": ["Cat", "", "Cat"],
+        ...         "animal_2": ["Dog", "Dog", ""],
+        ...     }
+        ... )
         >>> print(df)
         shape: (3, 5)
         ┌────────┬──────┬─────────────┬──────────┬──────────┐
@@ -170,14 +228,22 @@ def read_polars(
         │ Male   ┆ 1998 ┆ Movie       ┆ Cat      ┆          │
         └────────┴──────┴─────────────┴──────────┴──────────┘
 
-        >>> survey = read_polars(df, compact_ids=["hobby"])
+        Using ``compact_ids`` to specify the compact column explicitly
+        (``animal`` is auto-detected as wide via ``name_pattern``):
 
+        >>> survey = read_polars(df, compact_ids=["hobby"])
         >>> print(survey)
         Survey (4 variables)
-            Variable(id=gender, label=gender, value_indices={'Female': 1, 'Male': 2}, base=3)
-            Variable(id=yob, label=yob, value_indices={}, base=3)
-            Variable(id=hobby, label=hobby, value_indices={'Movie': 1, 'Sport;Book': 2, 'Sport;Movie': 3}, base=3)
-            Variable(id=animal, label=animal, value_indices={'Cat': 1, 'Dog': 2}, base=3)
+            Variable(id=gender, ...)
+            Variable(id=yob, ...)
+            Variable(id=hobby, ...)
+            Variable(id=animal, ...)
+
+        Using ``auto_detect`` instead (scans all columns for ``;``):
+
+        >>> survey = read_polars(df, auto_detect=True, compact_separator=";")
+
+        Both approaches produce the same result:
 
         >>> print(survey.get_df())
         shape: (3, 4)
@@ -192,9 +258,14 @@ def read_polars(
         └────────┴──────┴────────────────────┴────────────────┘
 
     Notes:
-        - Empty strings ("") are converted to null
-        - Multi-select values are always sorted
-        - Columns with no responses may be excluded
+        - Empty strings (``""``) are converted to ``None``.
+        - Multiselect values are always sorted alphabetically within each row.
+        - Columns with no valid responses are excluded by default
+          (``exclude_null=True``).
+        - Do not combine ``auto_detect=True`` with ``compact_ids`` in the
+          same call — use one approach or the other.
+        - ``name_pattern`` separators (``_``, ``.``, ``:``) are defined in
+          ``survy.separator.SEPARATORS``.
     """
     compact_ids = compact_ids or []
     reader = PolarReader(compact_ids, compact_separator, auto_detect, name_pattern)
