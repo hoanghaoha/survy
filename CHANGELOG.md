@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.2] - 2026-04-10
+
+### Added
+
+- **`read_spss(path, name_pattern)`** — read SPSS `.sav` files directly into a `Survey`. Value labels are applied automatically (text labels, not numeric codes). Wide multiselect columns (e.g. `hobby_1`, `hobby_2`) are detected and merged via `name_pattern`, consistent with `read_csv` and `read_excel`. Compact multiselect parameters (`compact_ids`, `auto_detect`) are intentionally omitted — SAV is always wide format.
+- **Agent skill: `name_pattern` documentation** — `SKILL.md` and `api_reference.md` updated to fully explain the `name_pattern` parameter, including token syntax (`id`, `multi`), reserved separators (`_`, `.`, `:`), and examples for different column naming conventions.
+
+---
+
 ## [0.2.1] - 2026-04-09
 
 ### Added
