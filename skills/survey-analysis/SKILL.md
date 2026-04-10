@@ -19,7 +19,7 @@ description: >
 Its central design principle is treating survey constructs — especially multiselect questions — as
 first-class concepts rather than awkward DataFrame workarounds.
 
-**Install**: `pip install survy`
+**Install**: Always install the latest version — `pip install --upgrade survy`
 **Powered by**: Polars (all DataFrames returned are Polars, not pandas)
 
 ---
@@ -27,10 +27,12 @@ first-class concepts rather than awkward DataFrame workarounds.
 ## 1. Core Objects
 
 ### Survey
+
 Top-level container. Created via `read_*` functions — never instantiate directly.
 Access variables with `survey["Q1"]`. Print for a compact summary.
 
 ### Variable
+
 Wraps a single Polars Series plus survey metadata. Key attributes:
 
 | Attribute         | Type                | Description |
@@ -49,15 +51,18 @@ Wraps a single Polars Series plus survey metadata. Key attributes:
 
 ## 2. Reading Data
 
-All readers return a `Survey` object. The key challenge survy solves at read time is
-recognizing **multiselect questions** — questions where one respondent can choose multiple
-answers. Raw data encodes these in two very different layouts, and survy needs to know
-which layout it's looking at so it can merge the data into a single logical variable.
+All readers return a `Survey` object. The key challenge survy
+solves at read time is recognizing **multiselect questions** —
+questions where one respondent can choose multiple answers.
+Raw data encodes these in two very different layouts, and survy
+needs to know which layout it's looking at so it can merge the
+data into a single logical variable.
 
 ### Multiselect: Compact Format vs Wide Format
 
-**Compact format** stores all selected answers in a single cell, joined by a separator
-(typically `;`). One column = one question.
+**Compact format** stores all selected answers in a single
+cell, joined by a separator (typically `;`).
+One column = one question.
 
 ```
 id,  gender,  hobby
@@ -66,11 +71,13 @@ id,  gender,  hobby
 3,   Male,    Movie
 ```
 
-Here `hobby` is one column. The cell `"Sport;Book"` means the respondent chose both
-Sport and Book. survy splits this cell on the separator to recover the individual choices.
+Here `hobby` is one column. The cell `"Sport;Book"` means the
+respondent chose both Sport and Book. survy splits this cell on
+the separator to recover the individual choices.
 
-**Wide format** spreads each possible answer across its own column, using a shared prefix
-plus a numeric suffix (`_1`, `_2`, ...). Multiple columns = one question.
+**Wide format** spreads each possible answer across its own
+column, using a shared prefix plus a numeric suffix
+(`_1`, `_2`, ...). Multiple columns = one question.
 
 ```
 id,  gender,  hobby_1,  hobby_2,  hobby_3
@@ -79,12 +86,14 @@ id,  gender,  hobby_1,  hobby_2,  hobby_3
 3,   Male,    ,         Movie,
 ```
 
-Here `hobby_1`, `hobby_2`, `hobby_3` are three columns that together represent the single
-`hobby` question. survy groups them by matching the prefix pattern and merges them into
-one multiselect variable named `hobby`.
+Here `hobby_1`, `hobby_2`, `hobby_3` are three columns that
+together represent the single `hobby` question. survy groups
+them by matching the prefix pattern and merges them into one
+multiselect variable named `hobby`.
 
-**After reading**, both formats produce the exact same Survey variable internally — a
-`MULTISELECT` variable whose data is a sorted list of chosen values per respondent:
+**After reading**, both formats produce the exact same Survey
+variable internally — a `MULTISELECT` variable whose data is a
+sorted list of chosen values per respondent:
 
 ```
 hobby: [["Book", "Sport"], ["Movie", "Sport"], ["Movie"]]
@@ -92,36 +101,51 @@ hobby: [["Book", "Sport"], ["Movie", "Sport"], ["Movie"]]
 
 ### How survy detects each format
 
-**Wide format** is detected automatically by the `name_pattern` regex (default `"id(_multi)?"`).
-Any columns whose names share a base ID followed by `_1`, `_2`, etc. are grouped into one
-multiselect variable. This happens by default — no extra parameters needed.
+**Wide format** is detected via `name_pattern` — a format template (NOT a raw regex)
+with two named tokens and a set of reserved separators:
 
-**Compact format** is NOT detected by default because a semicolon in a cell could be regular
-text. You must tell survy which columns are compact in one of two ways:
+- **Tokens**: `id` (base variable name), `multi` (suffix for wide columns)
+- **Reserved separators**: `_`, `.`, `:` — these are always treated as delimiters
+  between tokens when parsing column names
+
+With the default pattern `"id(_multi)?"`:
+
+- `hobby_1` → `id="hobby"`, `multi="1"` → grouped as wide multiselect
+- `hobby_2` → same `id="hobby"` → merged with `hobby_1`
+- `gender` → no suffix → normal column
+
+Other patterns:
+
+- `"id.multi"` → matches `Q1.1`, `Q1.2`, ...
+- `"id:multi"` → matches `Q1:a`, `Q1:b`, ...
+
+**Separator conflict warning**: If a column name contains more than one reserved
+separator (e.g. `my.var_1`), `parse_id` will fail because it can't unambiguously
+split the name into tokens. Before loading, rename such columns so only one
+separator is used (e.g. rename `my.var_1` to `myvar_1` or `my@var_1`).
+
+**Compact format** is NOT detected by default because a semicolon in a cell
+could be regular text. You must tell survy which columns are compact in one of two ways:
 
 1. **`compact_ids`** — explicitly list the column IDs that are compact multiselect.
-   Use this when you know exactly which columns use the compact encoding.
-
-2. **`auto_detect=True`** — survy scans every column's data for the `compact_separator`
-   character. Any column containing that character in at least one cell is treated as
-   compact multiselect. Use this when you don't know which columns are compact but you
-   know the separator.
+2. **`auto_detect=True`** — survy scans every column for the `compact_separator`
+   character; any column containing it in at least one cell is treated as compact.
 
 **Rule**: Do NOT combine `auto_detect=True` with `compact_ids` in the same call.
-Use one approach or the other.
 
 ### Shared Reader Parameters (read_csv, read_excel, read_polars only)
 
-These parameters control multiselect detection and apply to `read_csv`, `read_excel`,
-and `read_polars`. They do NOT apply to `read_spss` (which reads SPSS-native metadata)
-or `read_json` (which reads survy's own format where variable types are already resolved).
+These parameters control multiselect detection and apply to
+`read_csv`, `read_excel`, and `read_polars`. They do NOT apply
+to `read_json` (which reads survy's own format where variable
+types are already resolved).
 
 | Parameter           | Type              | Default          | Description |
 |---------------------|-------------------|------------------|-------------|
-| `compact_ids`       | `list[str]|None`  | `None`           | Column IDs to treat as compact multiselect |
+| `compact_ids`       | `list[str] \| None` | `None`           | Column IDs to treat as compact multiselect |
 | `compact_separator` | `str`             | `";"`            | Separator used to split compact cells |
 | `auto_detect`       | `bool`            | `False`          | Auto-detect compact columns by scanning for separator |
-| `name_pattern`      | `str`             | `"id(_multi)?"`  | Regex for grouping wide multiselect columns by prefix |
+| `name_pattern`      | `str`             | `"id(_multi)?"` | Format template for wide column names. Tokens: `id`, `multi`. Separators: `_` `.` `:`. Not a raw regex. |
 
 ### read_csv / read_excel
 
@@ -144,8 +168,7 @@ survey = survy.read_csv("data_wide.csv")
 survey = survy.read_csv("data_wide.csv", name_pattern="id(_multi)?")
 
 # --- Mixed: some columns are wide, some are compact ---
-# Wide is always auto-detected; just specify the compact ones
-survey = survy.read_csv("data_mixed.csv", compact_ids=["Q5"], compact_separator=";")
+survey = survy.read_csv("data_mixed.csv", name_pattern="id(_multi)?", auto_detect=True)
 
 # Excel — identical API to read_csv
 survey = survy.read_excel("data.xlsx", auto_detect=True, compact_separator=";")
@@ -181,15 +204,20 @@ Reads a survy-format JSON file. The file must have this exact structure:
 ```
 
 **Key rules for the JSON structure:**
+
 - Top-level key must be `"variables"` (a list of variable objects).
 - Each variable must have `"id"`, `"data"`, `"label"`, and `"value_indices"`.
 - SELECT variables: `"data"` is a flat list of strings (or nulls).
-- NUMBER variables: `"data"` is a flat list of numbers; `"value_indices"` must be `{}`.
+- NUMBER variables: `"data"` is a flat list of numbers;
+  `"value_indices"` must be `{}`.
 - MULTISELECT variables: `"data"` is a list of lists of strings.
-- `"value_indices"` maps each answer text to a numeric index; only applied when non-empty.
-- **Read vs Write difference**: `to_json()` writes an extra `"vtype"` field per variable
-  (e.g. `"select"`, `"multi_select"`, `"number"`). `read_json()` ignores this field — it
-  re-infers the type from the data. So if you're building JSON manually, you can omit `"vtype"`.
+- `"value_indices"` maps each answer text to a numeric index;
+  only applied when non-empty.
+- **Read vs Write difference**: `to_json()` writes an extra
+  `"vtype"` field per variable (e.g. `"select"`,
+  `"multi_select"`, `"number"`). `read_json()` ignores this
+  field — it re-infers the type from the data. So if you're
+  building JSON manually, you can omit `"vtype"`.
 
 ```python
 survey = survy.read_json("data.json")
@@ -197,8 +225,11 @@ survey = survy.read_json("data.json")
 
 ### read_polars
 
-Construct a Survey from an existing Polars DataFrame. Extra parameter `exclude_null`
-(default `True`) drops columns with no responses or all-empty lists.
+Construct a Survey from an existing Polars DataFrame.
+Extra parameter `exclude_null` (default `True`) drops columns
+with no responses or all-empty lists.
+read_polars also have same concepts of wide/ compact format
+as read_csv.
 
 ```python
 import polars, survy
@@ -210,8 +241,6 @@ df = polars.DataFrame({
     "animal_1": ["Cat", "", "Cat"],
     "animal_2": ["Dog", "Dog", ""],
 })
-
-# Same concepts of compact - wide format as csv/ excel
 survey = survy.read_polars(df, auto_detect=True)
 ```
 
@@ -228,7 +257,8 @@ survey.update([
 ])
 ```
 
-Silently skips `value_indices` for NUMBER variables. Warns and skips unknown IDs.
+Silently skips `value_indices` for NUMBER variables.
+Warns and skips unknown IDs.
 
 ### survey.add() — add a variable
 
@@ -269,8 +299,10 @@ v.label = "Overall satisfaction"
 v.value_indices = {"very_satisfied": 1, "satisfied": 2, "neutral": 3}
 ```
 
-**Caution on value_indices setter**: Raises `DataStructureError` if any existing value
-in the data is missing from the new mapping. You must cover ALL values present in the data.
+**Caution on value_indices setter**: Raises
+`DataStructureError` if any existing value in the data is
+missing from the new mapping. You must cover ALL values
+present in the data.
 
 ---
 
@@ -299,6 +331,7 @@ df = survey.get_df(
 **`select_dtype`**: `"text"` keeps string codes (default); `"number"` converts via `value_indices`.
 
 **`multiselect_dtype`**:
+
 - `"compact"` → one `List[str]` column per multiselect (default)
 - `"text"` → expands to wide columns `Q_1`, `Q_2`, ... with string or `null`
 - `"number"` → expands to wide columns with `1`/`0` binary flags
@@ -333,6 +366,7 @@ result = survy.crosstab(
 ```
 
 **aggfunc options**:
+
 - `"count"` — cell counts with significance letter labels (z-test)
 - `"percent"` — column-wise proportions with significance labels
 - Numeric (`"mean"`, `"median"`, `"sum"`) — aggregates row variable; Welch's t-test for significance
@@ -400,17 +434,25 @@ print(survey.sps)  # full syntax: VARIABLE LABELS, VALUE LABELS, MRSETS, CTABLES
 ## 8. Gotchas & Rules
 
 1. **`auto_detect` vs `compact_ids`**: Never combine both.
-2. **`value_indices` setter must cover all existing data values** — raises `DataStructureError` otherwise.
-3. **`value_indices` is silently skipped for NUMBER variables** (in `update()` and direct set).
+2. **`value_indices` setter must cover all existing data values** —
+   raises `DataStructureError` otherwise.
+3. **`value_indices` is silently skipped for NUMBER variables**
+   (in `update()` and direct set).
 4. **Export path is a directory, not a file**.
 5. **`get_df()` returns Polars, not pandas**.
 6. **`filter()` returns a new Survey** — does not mutate.
-7. **`update()` resets label to `""` if `"label"` key is absent** from the metadata dict.
-8. **Empty strings become `None`** during CSV/Excel read.
-9. **Multiselect values are sorted alphabetically** within each row.
-10. **All variables in a crosstab must have the same row count**.
-11. **`read_csv` raises `FileTypeError`** if the file extension is not `.csv`. Same for `read_excel` with non-`.xlsx`.
-12. **`to_csv`/`to_excel` default is `compact=False`** — multiselect variables are expanded to wide columns unless you explicitly pass `compact=True`.
+7. **Empty strings become `None`** during CSV/Excel read.
+8. **Multiselect values are sorted alphabetically** within each row.
+9. **All variables in a crosstab must have the same row count**.
+10. **`read_csv` raises `FileTypeError`** if the file extension
+    is not `.csv`. Same for `read_excel` with non-`.xlsx`.
+11. **`to_csv`/`to_excel` default is `compact=False`** —
+    multiselect variables are expanded to wide columns unless
+    you explicitly pass `compact=True`.
+12. **Column names must not contain multiple reserved separators**
+    (`_`, `.`, `:`). If a column like `my.var_1` uses more than
+    one, `parse_id` will fail. Rename before loading so only one
+    separator appears (e.g. `myvar_1`).
 
 ---
 
@@ -420,7 +462,7 @@ print(survey.sps)  # full syntax: VARIABLE LABELS, VALUE LABELS, MRSETS, CTABLES
 |---|---|
 | Load CSV auto-detect | `survy.read_csv("f.csv", auto_detect=True, compact_separator=";")` |
 | Load CSV explicit compact | `survy.read_csv("f.csv", compact_ids=["Q2"], compact_separator=";")` |
-| Load CSV wide format | `survy.read_csv("f.csv")` (wide detected automatically) |
+| Load CSV wide format | `survy.read_csv("f.csv", name_pattern="id(_multi)?")` (wide detected automatically) |
 | Load JSON | `survy.read_json("f.json")` |
 | Load from Polars DF | `survy.read_polars(df, auto_detect=True)` |
 | Inspect variable | `survey["Q1"].vtype`, `.base`, `.len`, `.label`, `.value_indices`, `.dtype` |

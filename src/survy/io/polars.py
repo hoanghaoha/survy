@@ -266,6 +266,11 @@ def read_polars(
           same call — use one approach or the other.
         - ``name_pattern`` separators (``_``, ``.``, ``:``) are defined in
           ``survy.separator.SEPARATORS``.
+        - Column names must not contain more than one of these separators.
+          Names like ``"my.var_1"`` are ambiguous and may cause
+          ``parse_id()`` to fail or produce incorrect grouping. Rename
+          such columns before loading (e.g. ``"myvar_1"`` or
+          ``"my@var_1"``).
     """
     compact_ids = compact_ids or []
     reader = PolarReader(compact_ids, compact_separator, auto_detect, name_pattern)
