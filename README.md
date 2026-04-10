@@ -149,6 +149,7 @@ survy splits these cells on the separator to recover individual choices. Because
 # Available read functions
 survy.read_csv       # CSV files
 survy.read_excel     # Excel files (.xlsx)
+survy.read_spss      # SPSS .sav files
 survy.read_json      # survy-format JSON
 survy.read_polars    # Polars DataFrame already in memory
 ```
@@ -185,6 +186,20 @@ survey = survy.read_excel("data.xlsx", auto_detect=True, compact_separator=";")
 ```
 
 > **Important:** Do not combine `auto_detect=True` with `compact_ids` in the same call. Use one approach or the other.
+
+#### SPSS
+
+SPSS `.sav` files are always in wide format — each column is one variable. Compact multiselect detection does not apply. Wide multiselect columns (e.g. `hobby_1`, `hobby_2`) are still auto-detected and merged via `name_pattern`. Requires `pyreadstat`.
+
+```python
+# Wide format — multiselect columns detected automatically
+survey = survy.read_spss("data.sav")
+
+# Custom name_pattern if columns use a different suffix convention
+survey = survy.read_spss("data.sav", name_pattern="id.multi")  # Q1.1, Q1.2, ...
+```
+
+Value labels defined in the `.sav` file are applied automatically, so variables come back as text (e.g. `"Male"`, `"Female"`) rather than their underlying numeric codes.
 
 #### JSON
 
@@ -567,9 +582,13 @@ survey.to_excel("output/", name="results")
 
 #### SPSS
 
-Writes `{name}.sav` (data) and `{name}.sps` (syntax). Requires `pyreadstat`.
+Read from or write to SPSS format. Requires `pyreadstat`.
 
 ```python
+# Read
+survey = survy.read_spss("data.sav")
+
+# Write — produces {name}_data.sav and {name}_syntax.sps
 survey.to_spss("output/", name="results")
 
 # You can also get the SPSS syntax string directly

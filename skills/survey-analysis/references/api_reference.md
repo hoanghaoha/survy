@@ -8,6 +8,9 @@ Reads a `.csv` file. Raises `FileTypeError` if not `.csv`.
 ### survy.read_excel(path, compact_ids=None, compact_separator=";", auto_detect=False, name_pattern="id(_multi)?") → Survey
 Reads a `.xlsx` file. Same params as `read_csv`.
 
+### survy.read_spss(path, name_pattern="id(_multi)?") → Survey
+Reads a `.sav` file. Raises `FileTypeError` if not `.sav`. Always wide format — no `compact_ids` or `auto_detect`. Value labels applied automatically (text, not numeric codes). Requires `pyreadstat`.
+
 ### survy.read_json(path) → Survey
 Reads survy-format JSON with `{"variables": [...]}` structure.
 

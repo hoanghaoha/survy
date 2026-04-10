@@ -2,9 +2,96 @@ from pathlib import Path
 import polars as pl
 import pytest
 
-from survy.io.spss import to_spss
+from survy.io.spss import read_spss, to_spss
+from survy.errors import FileTypeError
 from survy.variable.variable import Variable
 from survy.survey.survey import Survey
+
+
+def make_mock_read_sav(df: pl.DataFrame):
+    """Return a mock for pyreadstat.read_sav that returns (df, None)."""
+
+    def mock_read_sav(path, **kwargs):
+        return df, None
+
+    return mock_read_sav
+
+
+def test_read_spss_success(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    df = pl.DataFrame({"Q1": ["A", "B", "A"], "Q2": [1, 2, 3]})
+    monkeypatch.setattr("pyreadstat.read_sav", make_mock_read_sav(df))
+
+    file_path = tmp_path / "survey.sav"
+    file_path.touch()
+
+    survey = read_spss(file_path)
+
+    assert isinstance(survey, Survey)
+    assert len(survey.variables) == 2
+    assert survey["Q1"].id == "Q1"
+    assert survey["Q2"].id == "Q2"
+
+
+def test_read_spss_path_as_str(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    df = pl.DataFrame({"Q1": ["A", "B", "A"]})
+    monkeypatch.setattr("pyreadstat.read_sav", make_mock_read_sav(df))
+
+    file_path = tmp_path / "survey.sav"
+    file_path.touch()
+
+    survey = read_spss(str(file_path))
+
+    assert isinstance(survey, Survey)
+
+
+def test_read_spss_wrong_extension(tmp_path: Path):
+    file_path = tmp_path / "bad.csv"
+    file_path.write_text("not sav")
+
+    with pytest.raises(FileTypeError):
+        read_spss(file_path)
+
+
+def test_read_spss_applies_value_formats(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """Verify read_sav is called with apply_value_formats=True and formats_as_category=False."""
+    captured = {}
+
+    def mock_read_sav(path, **kwargs):
+        captured.update(kwargs)
+        return pl.DataFrame({"Q1": ["A", "B"]}), None
+
+    monkeypatch.setattr("pyreadstat.read_sav", mock_read_sav)
+
+    file_path = tmp_path / "survey.sav"
+    file_path.touch()
+
+    read_spss(file_path)
+
+    assert captured.get("apply_value_formats") is True
+    assert captured.get("formats_as_category") is False
+    assert captured.get("output_format") == "polars"
+
+
+def test_read_spss_wide_multiselect(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """Wide multiselect columns (hobby_1, hobby_2) should be merged into one variable."""
+    df = pl.DataFrame(
+        {
+            "gender": ["Male", "Female", "Male"],
+            "hobby_1": ["Book", None, None],
+            "hobby_2": [None, "Movie", "Movie"],
+        }
+    )
+    monkeypatch.setattr("pyreadstat.read_sav", make_mock_read_sav(df))
+
+    file_path = tmp_path / "survey.sav"
+    file_path.touch()
+
+    survey = read_spss(file_path)
+
+    assert len(survey.variables) == 2
+    assert survey["gender"].id == "gender"
+    assert survey["hobby"].id == "hobby"
+    assert survey["hobby"].series.to_list() == [["Book"], ["Movie"], ["Movie"]]
 
 
 def make_sample_survey():
