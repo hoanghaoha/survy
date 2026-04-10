@@ -2,7 +2,7 @@ from survy.io.polars import read_polars
 from survy.io.csv import read_csv, to_csv
 from survy.io.excel import read_excel, to_excel
 from survy.io.json import read_json, to_json
-from survy.io.spss import to_spss
+from survy.io.spss import read_spss, to_spss
 
 
 from survy.survey.survey import Survey
@@ -19,6 +19,7 @@ __all__ = [
     "to_csv",
     "to_excel",
     "to_json",
+    "read_spss",
     "to_spss",
     "Survey",
     "Variable",

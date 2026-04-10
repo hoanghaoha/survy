@@ -2,11 +2,11 @@
 name: survey-analysis
 description: >
   Use this skill whenever the user wants to work with survey data using the `survy` Python library.
-  Triggers include: loading or reading survey CSV/Excel/JSON files, handling multiselect (multi-choice)
+  Triggers include: loading or reading survey CSV/Excel/JSON/SPSS files, handling multiselect (multi-choice)
   questions, computing frequency tables or crosstabs, exporting survey data to SPSS (.sav) or other formats,
   updating variable labels or value indices, transforming survey data between wide/compact formats,
   filtering respondents, replacing values, adding/dropping/sorting variables, or any task involving
-  survy's API (read_csv, read_excel, read_json, read_polars, crosstab, survey["Q1"],
+  survy's API (read_csv, read_excel, read_json, read_polars, read_spss, crosstab, survey["Q1"],
   to_spss, to_csv, to_excel, to_json, etc.).
   Also trigger when the user says things like "analyze my survey", "process questionnaire data",
   "build a survey analysis script", or "help me with survy". Always read this skill before writing
@@ -132,6 +132,26 @@ could be regular text. You must tell survy which columns are compact in one of t
    character; any column containing it in at least one cell is treated as compact.
 
 **Rule**: Do NOT combine `auto_detect=True` with `compact_ids` in the same call.
+
+### read_spss
+
+Reads an SPSS `.sav` file. SPSS files are **always wide format** — compact multiselect does not
+apply and `compact_ids` / `auto_detect` are not parameters. Wide multiselect columns (e.g.
+`hobby_1`, `hobby_2`) are still auto-detected and merged via `name_pattern`. Value labels stored
+in the `.sav` file are applied automatically, so variables come back as text (`"Male"`, `"Female"`)
+rather than numeric codes. Requires `pyreadstat`.
+
+```python
+# Wide multiselect detected automatically
+survey = survy.read_spss("data.sav")
+
+# Custom suffix convention (Q1.1, Q1.2, ...)
+survey = survy.read_spss("data.sav", name_pattern="id.multi")
+```
+
+**Rule**: Do NOT pass `compact_ids` or `auto_detect` to `read_spss` — those parameters don't exist.
+
+---
 
 ### Shared Reader Parameters (read_csv, read_excel, read_polars only)
 
@@ -445,7 +465,8 @@ print(survey.sps)  # full syntax: VARIABLE LABELS, VALUE LABELS, MRSETS, CTABLES
 8. **Multiselect values are sorted alphabetically** within each row.
 9. **All variables in a crosstab must have the same row count**.
 10. **`read_csv` raises `FileTypeError`** if the file extension
-    is not `.csv`. Same for `read_excel` with non-`.xlsx`.
+    is not `.csv`. Same for `read_excel` with non-`.xlsx` and
+    `read_spss` with non-`.sav`.
 11. **`to_csv`/`to_excel` default is `compact=False`** —
     multiselect variables are expanded to wide columns unless
     you explicitly pass `compact=True`.
@@ -463,6 +484,7 @@ print(survey.sps)  # full syntax: VARIABLE LABELS, VALUE LABELS, MRSETS, CTABLES
 | Load CSV auto-detect | `survy.read_csv("f.csv", auto_detect=True, compact_separator=";")` |
 | Load CSV explicit compact | `survy.read_csv("f.csv", compact_ids=["Q2"], compact_separator=";")` |
 | Load CSV wide format | `survy.read_csv("f.csv", name_pattern="id(_multi)?")` (wide detected automatically) |
+| Load SPSS | `survy.read_spss("f.sav")` |
 | Load JSON | `survy.read_json("f.json")` |
 | Load from Polars DF | `survy.read_polars(df, auto_detect=True)` |
 | Inspect variable | `survey["Q1"].vtype`, `.base`, `.len`, `.label`, `.value_indices`, `.dtype` |
