@@ -5,13 +5,22 @@
 [![Python](https://img.shields.io/pypi/pyversions/survy.svg)](https://pypi.org/project/survy/)
 [![CI](https://github.com/hoanghaoha/survy/actions/workflows/ci.yml/badge.svg)](https://github.com/hoanghaoha/survy/actions)
 
-**A clean, simple API for processing and analyzing survey data — with native multiselect support and AI-ready agent integration.**
+**A Python library for survey data — treating multiselect questions as first-class variables, not DataFrame workarounds.**
+
+```mermaid
+graph TD
+    A[📂 Data Sources] --> B[⚙️ survy]
+    B --> C[🔄 Transform]
+    C --> D[📤 Export]
+    C --> E[🔍 Explore]
+    E --> F[📊 Analyze]
+```
 
 ---
 
 ## 📋 Table of Contents
 
-- [Overview](#-overview)
+- [Why survy?](#-why-survy)
 - [Features](#-features)
 - [Installation](#-installation)
 - [Quick Demo](#-quick-demo)
@@ -30,10 +39,13 @@
 
 ---
 
-## 📦 Overview
+## 📦 Why survy?
 
-`survy` is a lightweight Python library built for working efficiently with survey data.
-It simplifies the full workflow — from raw data ingestion to transformation and analysis — while preserving survey-specific structures like multiselect questions.
+Survey data has a construct that no general-purpose Python tool handles correctly: **multiselect questions** — "choose all that apply" questions where one respondent selects multiple answers. Raw data stores these as either multiple columns (`hobby_1`, `hobby_2`, `hobby_3`) or delimited strings (`"Sport;Book"`), but pandas treats them as unrelated columns or plain text. Every project, you rewrite the same boilerplate to split, group, count, and export them — and get it subtly wrong (counting *responses* instead of *respondents*, losing column groupings, breaking on format changes).
+
+SPSS solved this decades ago with native multiple response sets. R has partial solutions scattered across `expss`, `MRCV`, and `surveydata`. But Python — the language AI coding tools actually generate — had nothing.
+
+survy makes `MULTISELECT` a first-class variable type. Load your data, and survy auto-detects the format, merges columns into logical variables, and carries that type awareness through frequencies, crosstabs, filtering, and export. The correct code is also the simple code — which means AI assistants can generate it reliably too.
 
 ---
 
@@ -41,7 +53,6 @@ It simplifies the full workflow — from raw data ingestion to transformation an
 
 - 🔹 Multiselect as a first-class concept — both compact and wide formats auto-detected
 - 🔹 Read & write multiple formats: CSV, Excel, JSON, SPSS
-- 🔹 Clean, minimal, and expressive API
 - 🔹 Built-in tools for validation, tracking, and analysis
 - 🔹 Cross-tabulation with significance testing
 - 🔹 AI-ready — ships with an [agent skill](#-agent-skill) so LLM coding assistants generate correct `survy` code
@@ -119,7 +130,7 @@ print(survy.crosstab(survey["gender"], survey["hobby"]))
 
 The key challenge with survey data is **multiselect questions** — questions where a respondent can choose multiple answers. Raw data encodes these in two different layouts, and survy handles both.
 
-**Wide format** spreads each answer across its own column, using a shared prefix plus a numeric suffix (`_1`, `_2`, ...):
+**Wide format** spreads each answer across its own column, using a shared prefix plus a separator and numeric suffix (e.g. `_1`, `_2`, ...):
 
 | gender | yob  | hobby_1 | hobby_2 | hobby_3 | animal_1 | animal_2 |
 |--------|------|---------|---------|---------|----------|----------|
@@ -127,7 +138,7 @@ The key challenge with survey data is **multiselect questions** — questions wh
 | Female | 1999 |         | Movie   |         |          | Dog      |
 | Male   | 1998 |         | Movie   |         | Cat      |          |
 
-survy groups columns by matching the prefix pattern (e.g. `hobby_1`, `hobby_2`, `hobby_3` → one `hobby` variable). This happens automatically — no extra parameters needed.
+survy groups columns by parsing the name with a `name_pattern` template (default `"id(_multi)?"`). The tokens `id` and `multi` are named placeholders, and `_`, `.`, `:` are recognized separators. So `hobby_1` is parsed as `id="hobby"`, `multi="1"` — all columns sharing the same `id` are merged into one multiselect variable. This happens automatically — no extra parameters needed.
 
 **Compact format** stores all selected answers in a single cell, joined by a separator (typically `;`):
 
@@ -149,7 +160,6 @@ survy splits these cells on the separator to recover individual choices. Because
 # Available read functions
 survy.read_csv       # CSV files
 survy.read_excel     # Excel files (.xlsx)
-survy.read_spss      # SPSS .sav files
 survy.read_json      # survy-format JSON
 survy.read_polars    # Polars DataFrame already in memory
 ```
@@ -178,28 +188,16 @@ survey = survy.read_csv(
 # Wide is always auto-detected; just specify the compact ones
 survey = survy.read_csv("data_mixed.csv", compact_ids=["Q5"], compact_separator=";")
 
-# Custom name_pattern for wide detection if columns use a different suffix convention
-survey = survy.read_csv("data.csv", name_pattern="id(_multi)?")
+# Custom name_pattern for wide detection if columns use a different naming convention
+# Tokens: "id" (base name), "multi" (suffix). Separators: _ . :
+# Example: "id.multi" would match "Q1.1", "Q1.2", etc.
+survey = survy.read_csv("data.csv", name_pattern="id.multi")
 
 # Excel — identical API
 survey = survy.read_excel("data.xlsx", auto_detect=True, compact_separator=";")
 ```
 
 > **Important:** Do not combine `auto_detect=True` with `compact_ids` in the same call. Use one approach or the other.
-
-#### SPSS
-
-SPSS `.sav` files are always in wide format — each column is one variable. Compact multiselect detection does not apply. Wide multiselect columns (e.g. `hobby_1`, `hobby_2`) are still auto-detected and merged via `name_pattern`. Requires `pyreadstat`.
-
-```python
-# Wide format — multiselect columns detected automatically
-survey = survy.read_spss("data.sav")
-
-# Custom name_pattern if columns use a different suffix convention
-survey = survy.read_spss("data.sav", name_pattern="id.multi")  # Q1.1, Q1.2, ...
-```
-
-Value labels defined in the `.sav` file are applied automatically, so variables come back as text (e.g. `"Male"`, `"Female"`) rather than their underlying numeric codes.
 
 #### JSON
 
@@ -582,13 +580,9 @@ survey.to_excel("output/", name="results")
 
 #### SPSS
 
-Read from or write to SPSS format. Requires `pyreadstat`.
+Writes `{name}.sav` (data) and `{name}.sps` (syntax). Requires `pyreadstat`.
 
 ```python
-# Read
-survey = survy.read_spss("data.sav")
-
-# Write — produces {name}_data.sav and {name}_syntax.sps
 survey.to_spss("output/", name="results")
 
 # You can also get the SPSS syntax string directly
@@ -624,11 +618,15 @@ The skill package includes:
 - **`scripts/batch_export.py`** — export a survey to all formats in one pass
 - **`assets/sample_data.csv`** / **`assets/sample_data_compact.csv`** — sample datasets for testing
 
-You can download the skill in /skills or install via command:
+#### Install the agent skill
+
+The skill files are included in the repo under `/skills`. If your AI tool supports skill installation:
 
 ```bash
 npx skills add https://github.com/hoanghaoha/survy
 ```
+
+Or manually copy the `skills/` directory into your project's `.claude/skills/` or equivalent location.
 
 ---
 
