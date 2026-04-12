@@ -4,6 +4,7 @@ import numpy
 import polars
 import polars.selectors as cs
 from polars._typing import PivotAgg
+from scipy.stats import chi2_contingency, f_oneway
 from statsmodels.stats.proportion import proportions_ztest
 from statsmodels.stats.weightstats import ttest_ind
 
@@ -34,7 +35,7 @@ def _get_filter(filter: Variable | None, len_: int) -> Variable:
             raise VarTypeError(f"NUMBER {filter.id} can not be set as filter")
         series = polars.Series("FILTER", filter.series.to_list())
     else:
-        series = polars.Series("FILTER", ["Total" for _ in range(len_)])
+        series = polars.Series("FILTER", ["Total"] * len_)
     return Variable(series)
 
 
@@ -165,8 +166,12 @@ class CrosstabExecutor:
     Notes:
         - All variables must have the same length (number of respondents).
         - MULTISELECT variables are automatically exploded into long format.
+        - The merged DataFrame is built once at construction and cached for
+          all subsequent filter-slice operations.
         - Significance tests use a two-proportion z-test for count/percent
-          and Welch's t-test for numeric aggregations.
+          and Welch's t-test for numeric aggregations, both with Bonferroni
+          correction and an omnibus gate (chi-square / one-way ANOVA) for
+          3+ column groups.
     """
 
     def __init__(
@@ -176,24 +181,23 @@ class CrosstabExecutor:
         self.column = column
         self.row = _get_row(row, column)
         self.filter = _get_filter(filter, column.len)
+        self._df_text = self._build_df(row_as_num=False)
+        self._df_num = self._build_df(row_as_num=True)
 
-    def get_df(self, row_as_num: bool) -> polars.DataFrame:
-        """Construct a merged DataFrame for crosstab computation.
+    def _build_df(self, row_as_num: bool) -> polars.DataFrame:
+        """Build the merged DataFrame from column, row, and filter variables.
 
-        Prepares and joins the column, row, and filter variables into a single
-        Polars DataFrame using a common respondent ID.
+        Called once per representation (text / numeric) at construction time.
+        The result is cached and returned by ``get_df``.
 
         Args:
-            row_as_num: Whether to convert the row variable to numeric
+            row_as_num: Whether to convert the row variable to its numeric
                 representation. Required for numeric aggregations.
 
         Returns:
             A DataFrame containing an "ID" column (row index), the column
-            variable, the row variable, and the filter variable.
-
-        Notes:
-            - MULTISELECT variables are exploded before joining.
-            - Joins are performed as left joins on "ID".
+            variable, the row variable, and the filter variable, with null
+            rows for column and row already removed.
         """
         column_df = _get_var_df(self.column, as_num=False)
         row_df = _get_var_df(self.row, as_num=row_as_num)
@@ -211,19 +215,33 @@ class CrosstabExecutor:
             .cast({self.column.id: polars.String})
         )
 
-    def _pivot_counts(self, filter_by: str) -> polars.DataFrame:
+    def get_df(self, row_as_num: bool) -> polars.DataFrame:
+        """Return the cached merged DataFrame.
+
+        Args:
+            row_as_num: Whether to return the numeric-row representation.
+
+        Returns:
+            The full (unfiltered) merged DataFrame built at construction.
+        """
+        return self._df_num if row_as_num else self._df_text
+
+    def _pivot_counts(self, filter_by: str) -> tuple[polars.DataFrame, dict[str, int]]:
         """Pivot raw response data into a count-based crosstab for a given filter.
 
         Args:
             filter_by: Filter value used to subset the data.
 
         Returns:
-            A DataFrame with row variable categories as rows, column variable
-            categories as columns, and unique respondent counts as values,
-            sorted by row variable.
+            A 2-tuple of:
+            - pivot: DataFrame with row variable categories as rows, column
+              variable categories as columns, and unique respondent counts as
+              values, sorted by row variable.
+            - col_totals: Mapping from each column category to the number of
+              unique respondents in that category within this filter slice.
 
         Examples:
-            Output (column=gender, row=satisfaction):
+            Output pivot (column=gender, row=satisfaction):
             ┌──────────────┬────────┬────────┐
             │ satisfaction ┆ Male   ┆ Female │
             │ ---          ┆ ---    ┆ ---    │
@@ -248,43 +266,35 @@ class CrosstabExecutor:
             .sort(self.row.id)
             .cast({self.row.id: polars.String})
         )
-
-        return pivot
-
-    def _get_col_total(self, col_name: str) -> int:
-        """Look up the total respondent count for a column variable category.
-
-        Args:
-            col_name: Category label matching a value in the column variable.
-
-        Returns:
-            Total count for that category, or 0 if not found.
-
-        Examples:
-            >>> self._get_col_total("Male")
-            90
-            >>> self._get_col_total("Unknown")
-            0
-        """
-        result = self.column.frequencies.filter(
-            polars.col(self.column.id) == str(col_name)
-        )["count"]
-        return result[0] if len(result) > 0 else 0
+        col_totals = dict(
+            df.group_by(self.column.id)
+            .agg(polars.col("ID").n_unique().alias("count"))
+            .iter_rows()
+        )
+        return pivot, col_totals
 
     def _sig_test_proportion(
-        self, counts: polars.DataFrame, alpha: float
+        self,
+        counts: polars.DataFrame,
+        col_totals: dict[str, int],
+        alpha: float,
     ) -> polars.DataFrame:
         """Test pairwise proportion differences for each cell in a count crosstab.
 
         For each cell, compares its column proportion against every other column
-        using a two-proportion z-test. Cells are labelled with the letters of
-        columns they differ from significantly.
+        using a two-proportion z-test with Bonferroni correction. When there are
+        3 or more column groups an omnibus chi-square test is run first; pairwise
+        tests are skipped entirely if the omnibus result is not significant.
 
         Args:
             counts: Numeric-only crosstab DataFrame (no label column). Rows
                 represent row variable categories; columns represent column
                 variable categories.
-            alpha: Significance level threshold (e.g. 0.05).
+            col_totals: Mapping from column category name to the total number
+                of unique respondents in that category for the current filter
+                slice. Used as the denominator (nobs) for the proportion test.
+            alpha: Significance level threshold (e.g. 0.05). Bonferroni
+                correction divides this by N*(N-1)/2 pairwise comparisons.
 
         Returns:
             A DataFrame with the same schema as `counts`, where each cell
@@ -314,20 +324,38 @@ class CrosstabExecutor:
             │ ""     ┆ ""     │
             └────────┴────────┘
         """
+        col_names = counts.columns
+        n_cols = len(col_names)
+        n_comparisons = n_cols * (n_cols - 1) / 2
+        corrected_alpha = alpha / n_comparisons if n_comparisons > 1 else alpha
+
+        if n_cols >= 3:
+            matrix = counts.to_numpy()
+            matrix = matrix[matrix.sum(axis=1) > 0]
+            if matrix.shape[0] >= 2:
+                try:
+                    p_omnibus = float(chi2_contingency(matrix)[1])  # type: ignore[arg-type]
+                    if p_omnibus >= alpha:
+                        return polars.DataFrame(
+                            {
+                                col: polars.Series(
+                                    [""] * counts.height, dtype=polars.String
+                                )
+                                for col in col_names
+                            }
+                        )
+                except ValueError:
+                    pass
 
         def _is_sig_diff(count, nobs) -> bool:
             if any(n == 0 for n in nobs):
                 return False
-
             props = [c / n for c, n in zip(count, nobs)]
-
             if any(p == 0 or p == 1 for p in props):
                 return False
-
             _, p = proportions_ztest(count, nobs)
-            return float(p) < alpha
+            return float(p) < corrected_alpha
 
-        col_names = counts.columns
         results = []
         for row in counts.iter_rows():
             row_result = [
@@ -338,8 +366,8 @@ class CrosstabExecutor:
                     and _is_sig_diff(
                         [val, other],
                         [
-                            self._get_col_total(col_names[i]),
-                            self._get_col_total(col_names[j]),
+                            col_totals.get(col_names[i], 0),
+                            col_totals.get(col_names[j], 0),
                         ],
                     )
                 )
@@ -349,16 +377,19 @@ class CrosstabExecutor:
 
         return polars.DataFrame(results, schema=counts.columns, orient="row")
 
-    def _sig_test_mean(self, filter_by: str, alpha: float) -> polars.DataFrame:
+    def _sig_test_mean(self, df: polars.DataFrame, alpha: float) -> polars.DataFrame:
         """Test pairwise mean differences across column variable categories.
 
         For each pair of column categories, applies Welch's t-test on the raw
-        row variable values. Each category is labelled with the letters of
-        categories it differs from significantly.
+        row variable values with Bonferroni correction. When there are 3 or more
+        groups a one-way ANOVA is run first; pairwise tests are skipped if the
+        omnibus result is not significant.
 
         Args:
-            filter_by: Filter value used to subset the data.
-            alpha: Significance level threshold (e.g. 0.05).
+            df: Filtered DataFrame for the current filter slice, with numeric
+                row values. Built by the caller to avoid redundant computation.
+            alpha: Significance level threshold (e.g. 0.05). Bonferroni
+                correction divides this by N*(N-1)/2 pairwise comparisons.
 
         Returns:
             A two-column DataFrame mapping each column category to its
@@ -374,45 +405,56 @@ class CrosstabExecutor:
             └────────┴─────┘
 
         Notes:
-            - Categories with fewer than 2 non-null values are skipped.
+            - Categories with fewer than 2 non-null values or zero variance
+              are excluded from significance testing.
             - Uses Welch's t-test (unequal variance assumption).
         """
+        col_names = df[self.column.id].unique().sort().to_list()
+        col_names = [col for col in col_names if col is not None]
+        n_cols = len(col_names)
 
-        def _get_group_data(item) -> list:
-            return (
-                df.filter(polars.col(self.column.id) == item)[self.row.id]
-                .drop_nulls()
-                .to_list()
-            )
+        # Pre-compute group data once per column category
+        group_data: dict[str, list] = {
+            col: df.filter(polars.col(self.column.id) == col)[self.row.id]
+            .drop_nulls()
+            .to_list()
+            for col in col_names
+        }
 
-        def _is_valid_sample(arr):
-            return len(arr) >= 2 and numpy.var(arr) > 0
+        def _is_valid_sample(arr: list) -> bool:
+            return len(arr) >= 2 and bool(numpy.var(arr) > 0)
+
+        n_comparisons = n_cols * (n_cols - 1) / 2
+        corrected_alpha = alpha / n_comparisons if n_comparisons > 1 else alpha
+
+        if n_cols >= 3:
+            valid_groups = [g for g in group_data.values() if _is_valid_sample(g)]
+            if len(valid_groups) >= 3:
+                try:
+                    p_omnibus = float(f_oneway(*valid_groups)[1])  # type: ignore[arg-type]
+                    if p_omnibus >= alpha:
+                        return polars.DataFrame(
+                            {self.column.id: col_names, "sig": [""] * n_cols}
+                        )
+                except Exception:
+                    pass
 
         def _is_sig_diff(group_a, group_b) -> bool:
             if not (_is_valid_sample(group_a) and _is_valid_sample(group_b)):
                 return False
-
             _, p, _ = ttest_ind(group_a, group_b)
-            return float(p) < alpha
-
-        df = self.get_df(row_as_num=True).filter(
-            polars.col(self.filter.id) == filter_by
-        )
-        col_names = df[self.column.id].unique().sort().to_list()
-        col_names = [col for col in col_names if col is not None]
+            return float(p) < corrected_alpha
 
         sig_labels = [
             "".join(
                 _col_label(j)
-                for j, other in enumerate(col_names)
-                if i != j and _is_sig_diff(_get_group_data(val), _get_group_data(other))
+                for j, other_name in enumerate(col_names)
+                if i != j and _is_sig_diff(group_data[val], group_data[other_name])
             )
             for i, val in enumerate(col_names)
         ]
 
-        return polars.DataFrame(
-            {self.column.id: col_names, "sig": sig_labels},
-        )
+        return polars.DataFrame({self.column.id: col_names, "sig": sig_labels})
 
     def crosstab_count(self, filter_by: str, alpha: float) -> polars.DataFrame:
         """Compute a count-based crosstab with inline significance labels.
@@ -442,15 +484,17 @@ class CrosstabExecutor:
             │ Dissatisfied ┆ "18 "      ┆ "12 "      │
             └──────────────┴────────────┴────────────┘
         """
-        counts = self._pivot_counts(filter_by)
+        counts, col_totals = self._pivot_counts(filter_by)
         numeric_counts = counts.select(cs.numeric())
 
-        sig_df = self._sig_test_proportion(numeric_counts, alpha)
+        sig_df = self._sig_test_proportion(numeric_counts, col_totals, alpha)
         merged = _label_columns(_merge_df_by_element(numeric_counts, sig_df))
 
         return polars.concat([counts.select(self.row.id), merged], how="horizontal")
 
-    def crosstab_percent(self, filter_by: str, alpha: float) -> polars.DataFrame:
+    def crosstab_percent(
+        self, filter_by: str, alpha: float, ndigits: int | None = None
+    ) -> polars.DataFrame:
         """Compute a percentage-based crosstab with inline significance labels.
 
         Calculates column-wise proportions for each row/column combination,
@@ -459,6 +503,8 @@ class CrosstabExecutor:
         Args:
             filter_by: Filter value used to subset the data.
             alpha: Significance level for the proportion z-test (e.g. 0.05).
+            ndigits: Number of decimal places to round proportions to.
+                If None, no rounding is applied.
 
         Returns:
             A DataFrame where each cell contains "{proportion} {sig_labels}".
@@ -466,7 +512,7 @@ class CrosstabExecutor:
             suffixed with their letter label.
 
         Examples:
-            Output (column=gender, row=satisfaction, alpha=0.05):
+            Output (column=gender, row=satisfaction, alpha=0.05, ndigits=3):
             ┌──────────────┬────────────┬────────────┐
             │ satisfaction ┆ Male (A)   ┆ Female (B) │
             │ ---          ┆ ---        ┆ ---        │
@@ -478,24 +524,27 @@ class CrosstabExecutor:
             └──────────────┴────────────┴────────────┘
 
         Notes:
-            Proportions are count / total respondents per column category.
-            If a column total is 0, its proportion is set to 0.
+            Proportions are count / total unique respondents per column
+            category within the current filter slice. If a column total is 0,
+            its proportion is set to 0.
         """
-        counts = self._pivot_counts(filter_by)
+        counts, col_totals = self._pivot_counts(filter_by)
         numeric_counts = counts.select(cs.numeric())
 
         percents = numeric_counts.select(
-            (polars.col(col) / self._get_col_total(col)).fill_nan(0.0)
+            (polars.col(col) / col_totals.get(col, 0)).fill_nan(0.0)
             for col in numeric_counts.columns
         )
+        if ndigits is not None:
+            percents = percents.select(polars.all().round(ndigits))
 
-        sig_df = self._sig_test_proportion(numeric_counts, alpha)
+        sig_df = self._sig_test_proportion(numeric_counts, col_totals, alpha)
         merged = _label_columns(_merge_df_by_element(percents, sig_df))
 
         return polars.concat([counts.select(self.row.id), merged], how="horizontal")
 
     def crosstab_number(
-        self, filter_by: str, aggfunc: PivotAgg, alpha: float
+        self, filter_by: str, aggfunc: PivotAgg, alpha: float, ndigits: int | None = None
     ) -> polars.DataFrame:
         """Compute a numeric aggregation crosstab with inline significance labels.
 
@@ -508,6 +557,8 @@ class CrosstabExecutor:
             aggfunc: Aggregation function to apply to the row variable
                 (e.g. "mean", "median", "sum", "min", "max").
             alpha: Significance level for the t-test (e.g. 0.05).
+            ndigits: Number of decimal places to round aggregated values to.
+                If None, no rounding is applied.
 
         Returns:
             A single-row DataFrame where each cell contains
@@ -515,7 +566,7 @@ class CrosstabExecutor:
             variable name; columns are column variable categories.
 
         Examples:
-            Output (column=gender, row=age, aggfunc="mean", alpha=0.05):
+            Output (column=gender, row=age, aggfunc="mean", alpha=0.05, ndigits=1):
             ┌─────┬────────────┬────────────┐
             │ age ┆ Male (A)   ┆ Female (B) │
             │ --- ┆ ---        ┆ ---        │
@@ -537,8 +588,10 @@ class CrosstabExecutor:
             .agg(getattr(polars.col(self.row.id), aggfunc)())
             .sort(self.column.id)
         )
+        if ndigits is not None:
+            agg_df = agg_df.with_columns(polars.col(self.row.id).round(ndigits))
 
-        sig_df = self._sig_test_mean(filter_by, alpha)
+        sig_df = self._sig_test_mean(df, alpha)
 
         transposed = (
             agg_df.join(sig_df, on=self.column.id)
@@ -561,7 +614,9 @@ class CrosstabExecutor:
         value_cols = _label_columns(transposed.select(cs.exclude(self.row.id)))
         return polars.concat([label_col, value_cols], how="horizontal")
 
-    def run(self, aggfunc: AggFunc, alpha: float) -> dict[str, polars.DataFrame]:
+    def run(
+        self, aggfunc: AggFunc, alpha: float, ndigits: int | None = None
+    ) -> dict[str, polars.DataFrame]:
         """Execute crosstab computation for all filter segments.
 
         Dispatches to the appropriate crosstab method based on the aggregation
@@ -574,6 +629,10 @@ class CrosstabExecutor:
                 z-tests are applied for "count"/"percent"; Welch's t-tests
                 for numeric modes.
             alpha: Significance level applied across all tests (e.g. 0.05).
+            ndigits: Number of decimal places to round output values to.
+                Applied to proportions ("percent") and aggregated values
+                (numeric modes). Ignored for "count". If None, no rounding
+                is applied.
 
         Returns:
             A dictionary mapping filter values to crosstab DataFrames. If no
@@ -583,7 +642,7 @@ class CrosstabExecutor:
             >>> executor.run("count", alpha=0.05)
             {'Total': <polars.DataFrame>}
 
-            >>> executor.run("mean", alpha=0.05)
+            >>> executor.run("mean", alpha=0.05, ndigits=2)
             {'Male': <polars.DataFrame>, 'Female': <polars.DataFrame>}
         """
         results = {}
@@ -591,8 +650,8 @@ class CrosstabExecutor:
             if aggfunc == "count":
                 results[value] = self.crosstab_count(value, alpha)
             elif aggfunc == "percent":
-                results[value] = self.crosstab_percent(value, alpha)
+                results[value] = self.crosstab_percent(value, alpha, ndigits)
             else:
-                results[value] = self.crosstab_number(value, aggfunc, alpha)
+                results[value] = self.crosstab_number(value, aggfunc, alpha, ndigits)
 
         return results
