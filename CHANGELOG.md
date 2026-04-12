@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.3] - 2026-04-12
+
+### Added
+
+- **Agent skill: questionnaire reading** — new skill for reading and interpreting questionnaire structure from survey data.
+- **`ndigits` parameter in `crosstab()`** — optional rounding for `"percent"` and numeric aggregation modes (`"mean"`, `"median"`, etc.). Defaults to `2`. Pass `None` to disable rounding.
+
+### Improved
+
+- **Crosstab performance** — the merged DataFrame is now built once at construction and cached, eliminating redundant joins across filter slices. Group data in `_sig_test_mean` is pre-computed once per column category instead of O(N²) times. Column totals are no longer re-fetched inside nested loops.
+
+### Fixed
+
+- **`crosstab_number` missing label columns** — column headers now carry letter labels `(A)`, `(B)`, … consistent with `crosstab_count` and `crosstab_percent`.
+- **Wrong significance test denominators under filter** — proportion z-tests now use respondent counts from the current filter slice instead of full-dataset frequencies, correcting p-values whenever a filter variable is active.
+
+---
+
 ## [0.2.2] - 2026-04-10
 
 ### Added
