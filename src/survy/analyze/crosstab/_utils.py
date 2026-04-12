@@ -516,13 +516,13 @@ class CrosstabExecutor:
 
         Examples:
             Output (column=gender, row=age, aggfunc="mean", alpha=0.05):
-            ┌─────┬──────────┬──────────┐
-            │ age ┆ Male     ┆ Female   │
-            │ --- ┆ ---      ┆ ---      │
-            │ str ┆ str      ┆ str      │
-            ╞═════╪══════════╪══════════╡
-            │ age ┆ "34.2 B" ┆ "29.8 A" │
-            └─────┴──────────┴──────────┘
+            ┌─────┬────────────┬────────────┐
+            │ age ┆ Male (A)   ┆ Female (B) │
+            │ --- ┆ ---        ┆ ---        │
+            │ str ┆ str        ┆ str        │
+            ╞═════╪════════════╪════════════╡
+            │ age ┆ "34.2 B"   ┆ "29.8 A"   │
+            └─────┴────────────┴────────────┘
 
         Notes:
             - The row variable must be numeric or convertible to numeric.
@@ -540,7 +540,7 @@ class CrosstabExecutor:
 
         sig_df = self._sig_test_mean(filter_by, alpha)
 
-        return (
+        transposed = (
             agg_df.join(sig_df, on=self.column.id)
             .with_columns(
                 (
@@ -556,6 +556,10 @@ class CrosstabExecutor:
                 column_names=self.column.id,
             )
         )
+
+        label_col = transposed.select(self.row.id)
+        value_cols = _label_columns(transposed.select(cs.exclude(self.row.id)))
+        return polars.concat([label_col, value_cols], how="horizontal")
 
     def run(self, aggfunc: AggFunc, alpha: float) -> dict[str, polars.DataFrame]:
         """Execute crosstab computation for all filter segments.
