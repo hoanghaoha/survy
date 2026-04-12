@@ -9,6 +9,7 @@ def crosstab(
     filter: Variable | None = None,
     aggfunc: AggFunc = "count",
     alpha: float = 0.05,
+    ndigits: int | None = 2,
 ) -> dict[str, polars.DataFrame]:
     """Compute a cross-tabulation table between two survey variables.
 
@@ -29,6 +30,9 @@ def crosstab(
             - Numeric aggregation (e.g. "mean", "median", "sum"): applied to
               the row variable.
         alpha: Significance level for statistical tests (default 0.05).
+        ndigits: Number of decimal places to round output values to.
+            Applied to proportions ("percent") and aggregated numeric values.
+            Ignored for "count". If None (default), no rounding is applied.
 
     Returns:
         A dictionary mapping each filter value to a Polars DataFrame
@@ -130,4 +134,4 @@ def crosstab(
         └─────┴─────────┴─────────┘}
     """
     crosstab_executor = CrosstabExecutor(column, row, filter)
-    return crosstab_executor.run(aggfunc, alpha)
+    return crosstab_executor.run(aggfunc, alpha, ndigits)
