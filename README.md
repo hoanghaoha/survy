@@ -31,7 +31,7 @@ graph TD
   - [Work with Variables](#work-with-variables)
   - [Analyze](#analyze)
   - [Export](#export)
-- [Agent Skill](#-agent-skill)
+- [Agent Skills](#-agent-skills)
 - [Design Philosophy](#-design-philosophy)
 - [Contributing](#-contributing)
 - [License](#-license)
@@ -55,7 +55,7 @@ survy makes `MULTISELECT` a first-class variable type. Load your data, and survy
 - 🔹 Read & write multiple formats: CSV, Excel, JSON, SPSS
 - 🔹 Built-in tools for validation, tracking, and analysis
 - 🔹 Cross-tabulation with significance testing
-- 🔹 AI-ready — ships with an [agent skill](#-agent-skill) so LLM coding assistants generate correct `survy` code
+- 🔹 AI-ready — pair with [survy-agent-skills](https://github.com/hoanghaoha/survy-agent-skills) so LLM coding assistants generate correct `survy` code
 
 ---
 
@@ -604,29 +604,14 @@ survey.to_json("output/", name="results")
 
 ---
 
-## 🤖 Agent Skill
+## 🤖 Agent Skills
 
-`survy` ships with a structured **agent skill** (`SKILL.md`) — a reference document designed for LLM-based coding assistants like Claude, Copilot, and similar tools. When an AI agent reads this file, it can generate correct `survy` code without hallucinating parameters, confusing compact and wide formats, or inventing methods that don't exist.
+Structured **agent skills** for `survy` live in a separate repository:
+**[survy-agent-skills](https://github.com/hoanghaoha/survy-agent-skills)**.
 
-The skill covers the full public API with correct signatures, defaults, and examples, plus a numbered gotchas section addressing the most common mistakes (like passing a file path instead of a directory to export methods, or combining `auto_detect` with `compact_ids`).
+These are reference documents designed for LLM-based coding assistants like Claude, Copilot, and similar tools. When an AI agent reads them, it can generate correct `survy` code without hallucinating parameters, confusing compact and wide formats, or inventing methods that don't exist.
 
-The skill package includes:
-
-- **`SKILL.md`** — complete API reference with compact-vs-wide format explanation, JSON schema, and gotchas
-- **`references/api_reference.md`** — quick-lookup method signatures
-- **`scripts/validate_survey.py`** — check a survey file for missing labels and unset value indices
-- **`scripts/batch_export.py`** — export a survey to all formats in one pass
-- **`assets/sample_data.csv`** / **`assets/sample_data_compact.csv`** — sample datasets for testing
-
-#### Install the agent skill
-
-The skill files are included in the repo under `/skills`. If your AI tool supports skill installation:
-
-```bash
-npx skills add https://github.com/hoanghaoha/survy
-```
-
-Or manually copy the `skills/` directory into your project's `.claude/skills/` or equivalent location.
+See the [survy-agent-skills README](https://github.com/hoanghaoha/survy-agent-skills#readme) for installation instructions.
 
 ---
 
