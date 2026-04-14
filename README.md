@@ -1,3 +1,9 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/hoanghaoha/survy/main/assets/survy_logo.svg" alt="survy" width="400"/>
+</p>
+
+---
+
 # survy
 
 [![PyPI version](https://img.shields.io/pypi/v/survy.svg)](https://pypi.org/project/survy/)
@@ -473,6 +479,7 @@ print(survey["gender"].frequencies)
 The `survy.crosstab()` function supports count, percent, and numeric aggregations, with optional significance testing and filtering.
 
 **Signature:**
+
 ```python
 survy.crosstab(
     column,           # Column variable — the grouping dimension (e.g., gender)
@@ -486,6 +493,7 @@ survy.crosstab(
 ```
 
 **Count:**
+
 ```python
 print(survy.crosstab(survey["gender"], survey["hobby"], aggfunc="count"))
 # {'Total': shape: (3, 3)
@@ -501,6 +509,7 @@ print(survy.crosstab(survey["gender"], survey["hobby"], aggfunc="count"))
 ```
 
 **Percent:**
+
 ```python
 print(survy.crosstab(survey["gender"], survey["hobby"], aggfunc="percent"))
 # {'Total': shape: (3, 3)
@@ -516,6 +525,7 @@ print(survy.crosstab(survey["gender"], survey["hobby"], aggfunc="percent"))
 ```
 
 **Mean (numeric variable):**
+
 ```python
 print(survy.crosstab(survey["gender"], survey["yob"], aggfunc="mean"))
 # {'Total': shape: (1, 3)
@@ -529,6 +539,7 @@ print(survy.crosstab(survey["gender"], survey["yob"], aggfunc="mean"))
 ```
 
 **With filter variable** (produces one table per filter category):
+
 ```python
 print(
     survy.crosstab(
