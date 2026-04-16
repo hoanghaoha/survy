@@ -27,6 +27,26 @@ def test_variable_str():
     assert q.id == "Q1"
 
 
+def test_variable_len():
+    s = polars.Series("Q1", ["A", "B"])
+    q = Variable(s)
+    q.label = "Question 1"
+    assert len(q) == 2
+
+
+def test_variable_iter():
+    s = polars.Series("Q1", ["A", "B"])
+    q = Variable(s)
+    assert [d for d in q] == ["A", "B"]
+
+
+def test_variable_getitem():
+    s = polars.Series("Q1", ["A", "B", "C"])
+    q = Variable(s)
+    assert q[0] == "A"
+    assert q[0:2].to_list() == ["A", "B"]
+
+
 def test_variable_rename():
     s = polars.Series("Q1", ["A", "B"])
     q = Variable(s)
