@@ -43,14 +43,14 @@ class Survey:
             >>> survey = read_polars(df, auto_detect=True)
             >>> survey
             Survey (4 variables)
-                Variable(id=gender, label=gender, value_indices={'Female': 1, 'Male': 2}, base=3)
-                Variable(id=yob, label=yob, value_indices={}, base=3)
-                Variable(id=hobby, label=hobby, value_indices={'Book': 1, 'Movie': 2, 'Sport': 3}, base=3)
-                Variable(id=animal, label=animal, value_indices={'Cat': 1, 'Dog': 2}, base=3)
+                Variable(id=gender, base=3, label=gender, value_indices={'Female': 1, 'Male': 2})
+                Variable(id=yob, base=3, label=yob, value_indices={})
+                Variable(id=hobby, base=3, label=hobby, value_indices={'Book': 1, 'Movie': 2, 'Sport': 3})
+                Variable(id=animal, base=3, label=animal, value_indices={'Cat': 1, 'Dog': 2})
         """
         lines = [f"Survey ({len(self.variables)} variables)"]
         for variable in self.variables:
-            lines.append(f"  {variable}")
+            lines.append(f"    {variable}")
         return "\n".join(lines)
 
     def __iter__(self):
