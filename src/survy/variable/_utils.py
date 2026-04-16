@@ -20,5 +20,5 @@ class VarType(StrEnum):
     """
 
     SELECT = "select"
-    MULTISELECT = "multi_select"
+    MULTISELECT = "multiselect"
     NUMBER = "number"
