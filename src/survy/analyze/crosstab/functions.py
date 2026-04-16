@@ -1,5 +1,5 @@
 import polars
-from survy.analyze.crosstab._utils import AggFunc, CrosstabExecutor
+from survy.analyze.crosstab._utils import AggFunc, _CrosstabExecutor
 from survy.variable.variable import Variable
 
 
@@ -133,5 +133,5 @@ def crosstab(
         │ yob ┆ 1999.0  ┆ 2000.0  │
         └─────┴─────────┴─────────┘}
     """
-    crosstab_executor = CrosstabExecutor(column, row, filter)
+    crosstab_executor = _CrosstabExecutor(column, row, filter)
     return crosstab_executor.run(aggfunc, alpha, ndigits)

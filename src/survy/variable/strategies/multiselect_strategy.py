@@ -3,11 +3,11 @@ import warnings
 import polars
 from survy.separators import MULTISELECT
 from survy.variable._utils import VarType
-from survy.variable.strategies.base_strategy import BaseStrategy
+from survy.variable.strategies.base_strategy import _BaseStrategy
 from survy.utils.spss import mrset, value_labels, variable_labels, variable_level
 
 
-class MultiSelectStrategy(BaseStrategy):
+class _MultiSelectStrategy(_BaseStrategy):
     """
     Strategy for handling multi-select survey variables.
 
@@ -17,14 +17,14 @@ class MultiSelectStrategy(BaseStrategy):
 
     def __init__(self, series: polars.Series, value_indices: dict[str, int]) -> None:
         """
-        Initialize MultiSelectStrategy.
+        Initialize _MultiSelectStrategy.
 
         Args:
             series (polars.Series): Series containing list-like responses.
             value_indices (dict[str, int]): Mapping of option labels to indices.
         """
-        self.series = series
-        self.value_indices = value_indices
+        self._series = series
+        self._value_indices = value_indices
 
     def get_df(self, **kwargs) -> polars.DataFrame:
         """
@@ -49,8 +49,8 @@ class MultiSelectStrategy(BaseStrategy):
             - Uses `list.contains` to detect option presence
         """
         dtype: Literal["number", "text", "compact"] = kwargs.get("dtype", "text")
-        id = self.series.name
-        df = self.series.to_frame()
+        col_name = self._series.name
+        df = self._series.to_frame()
 
         match dtype:
             case "compact":
@@ -58,24 +58,24 @@ class MultiSelectStrategy(BaseStrategy):
             case "number":
                 return df.with_columns(
                     [
-                        polars.col(id)
+                        polars.col(col_name)
                         .list.contains(val)
                         .cast(polars.Int8)
-                        .alias(f"{id}{MULTISELECT}{index}")
-                        for val, index in self.value_indices.items()
+                        .alias(f"{col_name}{MULTISELECT}{index}")
+                        for val, index in self._value_indices.items()
                     ]
-                ).drop(id)
+                ).drop(col_name)
             case "text":
                 return df.with_columns(
                     [
-                        polars.col(id)
+                        polars.col(col_name)
                         .list.contains(val)
                         .cast(polars.Int8)
                         .replace_strict({1: val}, default=None)
-                        .alias(f"{id}{MULTISELECT}{index}")
-                        for val, index in self.value_indices.items()
+                        .alias(f"{col_name}{MULTISELECT}{index}")
+                        for val, index in self._value_indices.items()
                     ]
-                ).drop(id)
+                ).drop(col_name)
             case _:
                 raise KeyError(f"Unsupported dtype: {dtype}")
 
@@ -94,13 +94,13 @@ class MultiSelectStrategy(BaseStrategy):
             before counting, so a single respondent may contribute to
             multiple rows.
         """
-        id = self.series.name
-        base = len(self.series)
+        col_name = self._series.name
+        base = len(self._series)
         df = (
             self.get_df(dtype="compact")
-            .explode(id)[id]
+            .explode(col_name)[col_name]
             .value_counts(name="count")
-            .sort(id)
+            .sort(col_name)
             .with_columns((polars.col("count") / base).alias("proportion"))
         )
 
@@ -125,20 +125,20 @@ class MultiSelectStrategy(BaseStrategy):
         Notes:
             - MRSETS is skipped if only one option exists.
         """
-        id = self.series.name
+        col_name = self._series.name
 
         var_label_str = variable_labels(
-            VarType.MULTISELECT, id, label, self.value_indices
+            VarType.MULTISELECT, col_name, label, self._value_indices
         )
-        value_label_str = value_labels(VarType.MULTISELECT, id, self.value_indices)
+        value_label_str = value_labels(VarType.MULTISELECT, col_name, self._value_indices)
         var_level_str = variable_level(
-            VarType.MULTISELECT, id, "NOMINAL", self.value_indices
+            VarType.MULTISELECT, col_name, "NOMINAL", self._value_indices
         )
 
-        if len(self.value_indices) == 1:
+        if len(self._value_indices) == 1:
             mrset_str = ""
-            warnings.warn(f"{id} have only 1 key for option. Mrset will be None")
+            warnings.warn(f"{col_name} have only 1 key for option. Mrset will be None")
         else:
-            mrset_str = mrset(id, label, self.value_indices)
+            mrset_str = mrset(col_name, label, self._value_indices)
 
         return "\n".join([var_label_str, value_label_str, var_level_str, mrset_str])

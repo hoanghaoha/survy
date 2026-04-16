@@ -1,25 +1,25 @@
 import polars
 from survy.variable._utils import VarType
-from survy.variable.strategies.base_strategy import BaseStrategy
+from survy.variable.strategies.base_strategy import _BaseStrategy
 from survy.utils.spss import variable_labels, variable_level
 
 
-class NumberStrategy(BaseStrategy):
+class _NumberStrategy(_BaseStrategy):
     """
     Strategy for handling numeric (continuous or discrete) survey variables.
     """
 
     def __init__(self, series: polars.Series, value_indices: dict[str, int]) -> None:
         """
-        Initialize NumberStrategy.
+        Initialize _NumberStrategy.
 
         Args:
             series (polars.Series): Series containing numeric responses.
             value_indices (dict[str, int]): Not used for numeric variables,
                 but kept for interface consistency.
         """
-        self.series = series
-        self.value_indices = value_indices
+        self._series = series
+        self._value_indices = value_indices
 
     def get_df(self, **kwargs) -> polars.DataFrame:
         """
@@ -33,7 +33,7 @@ class NumberStrategy(BaseStrategy):
         Returns:
             polars.DataFrame: DataFrame containing the original numeric data.
         """
-        df = self.series.to_frame()
+        df = self._series.to_frame()
         return df
 
     @property
@@ -50,14 +50,14 @@ class NumberStrategy(BaseStrategy):
             Null values are excluded from counts but included in the base,
             so proportions may not sum to 1.
         """
-        id = self.series.name
-        base = len(self.series)
+        col_name = self._series.name
+        base = len(self._series)
         df = (
             self.get_df(dtype="number")
-            .filter(polars.col(id).is_not_null())[id]
+            .filter(polars.col(col_name).is_not_null())[col_name]
             .value_counts(name="count")
-            .cast({id: polars.String})
-            .sort(id)
+            .cast({col_name: polars.String})
+            .sort(col_name)
             .with_columns((polars.col("count") / base).alias("proportion"))
         )
 
@@ -78,10 +78,10 @@ class NumberStrategy(BaseStrategy):
             str: Combined SPSS syntax string.
 
         """
-        id = self.series.name
+        col_name = self._series.name
 
-        var_label_str = variable_labels(VarType.NUMBER, id, label, self.value_indices)
+        var_label_str = variable_labels(VarType.NUMBER, col_name, label, self._value_indices)
 
-        var_level_str = variable_level(VarType.NUMBER, id, "SCALE")
+        var_level_str = variable_level(VarType.NUMBER, col_name, "SCALE")
 
         return "\n".join([var_label_str, var_level_str])

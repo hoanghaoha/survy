@@ -171,21 +171,21 @@ def test_strategy_select():
     s = polars.Series("Q1", ["A", "B"])
     q = Variable(s)
 
-    assert q.strategy.__class__.__name__ == "SelectStrategy"
+    assert q.strategy.__class__.__name__ == "_SelectStrategy"
 
 
 def test_strategy_number():
     s = polars.Series("Q1", [1, 2])
     q = Variable(s)
 
-    assert q.strategy.__class__.__name__ == "NumberStrategy"
+    assert q.strategy.__class__.__name__ == "_NumberStrategy"
 
 
 def test_strategy_multiselect():
     s = polars.Series("Q1", [["A"], ["B"]])
     q = Variable(s)
 
-    assert q.strategy.__class__.__name__ == "MultiSelectStrategy"
+    assert q.strategy.__class__.__name__ == "_MultiSelectStrategy"
 
 
 def test_to_dict():
@@ -252,7 +252,7 @@ def test_sps_calls_strategy(monkeypatch):
         def get_sps(self, label: str):
             return "SPS"
 
-    monkeypatch.setattr("survy.variable.variable.SelectStrategy", FakeStrategy)
+    monkeypatch.setattr("survy.variable.variable._SelectStrategy", FakeStrategy)
 
     assert q.sps == "SPS"
 

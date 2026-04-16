@@ -5,10 +5,10 @@ import polars
 
 from survy.errors import DataStructureError, VarTypeError
 from survy.variable._utils import VarType
-from survy.variable.strategies.base_strategy import BaseStrategy
-from survy.variable.strategies.multiselect_strategy import MultiSelectStrategy
-from survy.variable.strategies.number_strategy import NumberStrategy
-from survy.variable.strategies.select_strategy import SelectStrategy
+from survy.variable.strategies.base_strategy import _BaseStrategy
+from survy.variable.strategies.multiselect_strategy import _MultiSelectStrategy
+from survy.variable.strategies.number_strategy import _NumberStrategy
+from survy.variable.strategies.select_strategy import _SelectStrategy
 from survy.utils.functions import extract_mapping
 
 
@@ -286,19 +286,19 @@ class Variable:
         return self.series.shape[0]
 
     @property
-    def strategy(self) -> BaseStrategy:
+    def strategy(self) -> _BaseStrategy:
         """
         Returns the appropriate strategy instance for the variable.
 
         Strategy is selected based on var type.
 
         Returns:
-            BaseStrategy: Strategy instance.
+            _BaseStrategy: Strategy instance.
         """
         return {
-            VarType.SELECT: SelectStrategy,
-            VarType.MULTISELECT: MultiSelectStrategy,
-            VarType.NUMBER: NumberStrategy,
+            VarType.SELECT: _SelectStrategy,
+            VarType.MULTISELECT: _MultiSelectStrategy,
+            VarType.NUMBER: _NumberStrategy,
         }[self.vtype](self.series, self.value_indices)
 
     def replace(self, mapping: dict[str, str]) -> None:

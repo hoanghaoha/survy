@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 import polars
 
 
-class BaseStrategy(ABC):
+class _BaseStrategy(ABC):
     """
     Abstract base class for all variable processing strategies.
 

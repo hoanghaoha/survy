@@ -9,13 +9,13 @@ from survy.utils.functions import parse_id
 
 
 @dataclass
-class PolarReader:
+class _PolarReader:
     compact_ids: list[str]
     compact_separator: str
     auto_detect: bool
     name_pattern: str
-    data: dict = field(default_factory=dict)
-    type_map: dict[str, str] = field(default_factory=dict)
+    _data: dict = field(default_factory=dict, init=False)
+    _type_map: dict[str, str] = field(default_factory=dict, init=False)
 
     @staticmethod
     def _process_list(li: list) -> list:
@@ -26,23 +26,23 @@ class PolarReader:
         return parsed_items["id"], parsed_items.get("multi")
 
     def _read_multi(self, id: str, data: Iterable) -> None:
-        self.type_map[id] = "multi"
-        self.data.setdefault(id, [])
-        self.data[id].append(data)
+        self._type_map[id] = "multi"
+        self._data.setdefault(id, [])
+        self._data[id].append(data)
 
     def _read_multi_compact(self, id: str, data: Iterable[str | None]) -> None:
         splitted_data = [
-            PolarReader._process_list(d.split(self.compact_separator)) if d else []
+            _PolarReader._process_list(d.split(self.compact_separator)) if d else []
             for d in data
         ]
 
-        self.type_map[id] = "multi_compact"
-        self.data[id] = splitted_data
+        self._type_map[id] = "multi_compact"
+        self._data[id] = splitted_data
 
     def _read_normal(self, id: str, data: Iterable) -> None:
         data = [d if d != "" else None for d in data]
-        self.type_map[id] = "normal"
-        self.data[id] = data
+        self._type_map[id] = "normal"
+        self._data[id] = data
 
     def _read_series(self, series: polars.Series) -> None:
         id, multi_id = self._parse_id(series.name)
@@ -68,7 +68,7 @@ class PolarReader:
         def _from_multi(id: str, values: list):
             return Variable(
                 series=polars.Series(
-                    id, [PolarReader._process_list(list(d)) for d in zip(*values)]
+                    id, [_PolarReader._process_list(list(d)) for d in zip(*values)]
                 )
             )
 
@@ -82,8 +82,8 @@ class PolarReader:
         }
 
         variables = []
-        for id, values in self.data.items():
-            type_ = self.type_map[id]
+        for id, values in self._data.items():
+            type_ = self._type_map[id]
             result = functions[type_](id, values)
             variables.append(result)
 
@@ -273,6 +273,6 @@ def read_polars(
           ``"my@var_1"``).
     """
     compact_ids = compact_ids or []
-    reader = PolarReader(compact_ids, compact_separator, auto_detect, name_pattern)
+    reader = _PolarReader(compact_ids, compact_separator, auto_detect, name_pattern)
     reader.read_df(raw_df)
     return reader.to_survey(exclude_null)

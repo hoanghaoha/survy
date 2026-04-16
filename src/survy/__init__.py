@@ -10,6 +10,15 @@ from survy.variable.variable import Variable, VarType
 
 from survy.analyze.crosstab.functions import crosstab
 
+from survy.errors import (
+    BaseError,
+    ParseError,
+    FileTypeError,
+    DataTypeError,
+    DataStructureError,
+    VarTypeError,
+)
+
 
 __all__ = [
     "read_polars",
@@ -25,4 +34,10 @@ __all__ = [
     "Variable",
     "VarType",
     "crosstab",
+    "BaseError",
+    "ParseError",
+    "FileTypeError",
+    "DataTypeError",
+    "DataStructureError",
+    "VarTypeError",
 ]

@@ -150,7 +150,7 @@ def _label_columns(df: polars.DataFrame) -> polars.DataFrame:
     return df
 
 
-class CrosstabExecutor:
+class _CrosstabExecutor:
     """Internal executor for computing cross-tabulations between survey variables.
 
     Orchestrates the preparation, joining, and aggregation of Variable objects
@@ -178,9 +178,9 @@ class CrosstabExecutor:
         self, column: Variable, row: Variable, filter: Variable | None
     ) -> None:
         assert column.len == row.len
-        self.column = column
-        self.row = _get_row(row, column)
-        self.filter = _get_filter(filter, column.len)
+        self._column = column
+        self._row = _get_row(row, column)
+        self._filter = _get_filter(filter, column.len)
         self._df_text = self._build_df(row_as_num=False)
         self._df_num = self._build_df(row_as_num=True)
 
@@ -199,9 +199,9 @@ class CrosstabExecutor:
             variable, the row variable, and the filter variable, with null
             rows for column and row already removed.
         """
-        column_df = _get_var_df(self.column, as_num=False)
-        row_df = _get_var_df(self.row, as_num=row_as_num)
-        filter_df = _get_var_df(self.filter, as_num=False)
+        column_df = _get_var_df(self._column, as_num=False)
+        row_df = _get_var_df(self._row, as_num=row_as_num)
+        filter_df = _get_var_df(self._filter, as_num=False)
 
         return (
             reduce(
@@ -209,13 +209,13 @@ class CrosstabExecutor:
                 [column_df, row_df, filter_df],
             )
             .filter(
-                polars.col(self.column.id).is_not_null(),
-                polars.col(self.row.id).is_not_null(),
+                polars.col(self._column.id).is_not_null(),
+                polars.col(self._row.id).is_not_null(),
             )
-            .cast({self.column.id: polars.String})
+            .cast({self._column.id: polars.String})
         )
 
-    def get_df(self, row_as_num: bool) -> polars.DataFrame:
+    def _get_df(self, row_as_num: bool) -> polars.DataFrame:
         """Return the cached merged DataFrame.
 
         Args:
@@ -252,22 +252,22 @@ class CrosstabExecutor:
             │ Dissatisfied ┆ 18     ┆ 12     │
             └──────────────┴────────┴────────┘
         """
-        df = self.get_df(row_as_num=False).filter(
-            polars.col(self.filter.id) == filter_by
+        df = self._get_df(row_as_num=False).filter(
+            polars.col(self._filter.id) == filter_by
         )
         pivot = (
             df.pivot(
-                on=self.column.id,
-                index=self.row.id,
+                on=self._column.id,
+                index=self._row.id,
                 values="ID",
                 aggregate_function=polars.element().n_unique(),
             )
-            .filter(polars.col(self.row.id).is_not_null())
-            .sort(self.row.id)
-            .cast({self.row.id: polars.String})
+            .filter(polars.col(self._row.id).is_not_null())
+            .sort(self._row.id)
+            .cast({self._row.id: polars.String})
         )
         col_totals = dict(
-            df.group_by(self.column.id)
+            df.group_by(self._column.id)
             .agg(polars.col("ID").n_unique().alias("count"))
             .iter_rows()
         )
@@ -409,13 +409,13 @@ class CrosstabExecutor:
               are excluded from significance testing.
             - Uses Welch's t-test (unequal variance assumption).
         """
-        col_names = df[self.column.id].unique().sort().to_list()
+        col_names = df[self._column.id].unique().sort().to_list()
         col_names = [col for col in col_names if col is not None]
         n_cols = len(col_names)
 
         # Pre-compute group data once per column category
         group_data: dict[str, list] = {
-            col: df.filter(polars.col(self.column.id) == col)[self.row.id]
+            col: df.filter(polars.col(self._column.id) == col)[self._row.id]
             .drop_nulls()
             .to_list()
             for col in col_names
@@ -434,7 +434,7 @@ class CrosstabExecutor:
                     p_omnibus = float(f_oneway(*valid_groups)[1])  # type: ignore[arg-type]
                     if p_omnibus >= alpha:
                         return polars.DataFrame(
-                            {self.column.id: col_names, "sig": [""] * n_cols}
+                            {self._column.id: col_names, "sig": [""] * n_cols}
                         )
                 except Exception:
                     pass
@@ -454,9 +454,9 @@ class CrosstabExecutor:
             for i, val in enumerate(col_names)
         ]
 
-        return polars.DataFrame({self.column.id: col_names, "sig": sig_labels})
+        return polars.DataFrame({self._column.id: col_names, "sig": sig_labels})
 
-    def crosstab_count(self, filter_by: str, alpha: float) -> polars.DataFrame:
+    def _crosstab_count(self, filter_by: str, alpha: float) -> polars.DataFrame:
         """Compute a count-based crosstab with inline significance labels.
 
         Counts unique respondents for each row/column category combination,
@@ -490,9 +490,9 @@ class CrosstabExecutor:
         sig_df = self._sig_test_proportion(numeric_counts, col_totals, alpha)
         merged = _label_columns(_merge_df_by_element(numeric_counts, sig_df))
 
-        return polars.concat([counts.select(self.row.id), merged], how="horizontal")
+        return polars.concat([counts.select(self._row.id), merged], how="horizontal")
 
-    def crosstab_percent(
+    def _crosstab_percent(
         self, filter_by: str, alpha: float, ndigits: int | None = None
     ) -> polars.DataFrame:
         """Compute a percentage-based crosstab with inline significance labels.
@@ -541,9 +541,9 @@ class CrosstabExecutor:
         sig_df = self._sig_test_proportion(numeric_counts, col_totals, alpha)
         merged = _label_columns(_merge_df_by_element(percents, sig_df))
 
-        return polars.concat([counts.select(self.row.id), merged], how="horizontal")
+        return polars.concat([counts.select(self._row.id), merged], how="horizontal")
 
-    def crosstab_number(
+    def _crosstab_number(
         self, filter_by: str, aggfunc: PivotAgg, alpha: float, ndigits: int | None = None
     ) -> polars.DataFrame:
         """Compute a numeric aggregation crosstab with inline significance labels.
@@ -579,39 +579,39 @@ class CrosstabExecutor:
             - The row variable must be numeric or convertible to numeric.
             - Significance test uses raw (non-aggregated) values per group.
         """
-        df = self.get_df(row_as_num=True).filter(
-            polars.col(self.filter.id) == filter_by
+        df = self._get_df(row_as_num=True).filter(
+            polars.col(self._filter.id) == filter_by
         )
 
         agg_df = (
-            df.group_by(self.column.id)
-            .agg(getattr(polars.col(self.row.id), aggfunc)())
-            .sort(self.column.id)
+            df.group_by(self._column.id)
+            .agg(getattr(polars.col(self._row.id), aggfunc)())
+            .sort(self._column.id)
         )
         if ndigits is not None:
-            agg_df = agg_df.with_columns(polars.col(self.row.id).round(ndigits))
+            agg_df = agg_df.with_columns(polars.col(self._row.id).round(ndigits))
 
         sig_df = self._sig_test_mean(df, alpha)
 
         transposed = (
-            agg_df.join(sig_df, on=self.column.id)
+            agg_df.join(sig_df, on=self._column.id)
             .with_columns(
                 (
-                    polars.col(self.row.id).cast(polars.String)
+                    polars.col(self._row.id).cast(polars.String)
                     + polars.lit(" ")
                     + polars.col("sig")
-                ).alias(self.row.id)
+                ).alias(self._row.id)
             )
             .drop("sig")
             .transpose(
                 include_header=True,
-                header_name=self.row.id,
-                column_names=self.column.id,
+                header_name=self._row.id,
+                column_names=self._column.id,
             )
         )
 
-        label_col = transposed.select(self.row.id)
-        value_cols = _label_columns(transposed.select(cs.exclude(self.row.id)))
+        label_col = transposed.select(self._row.id)
+        value_cols = _label_columns(transposed.select(cs.exclude(self._row.id)))
         return polars.concat([label_col, value_cols], how="horizontal")
 
     def run(
@@ -646,12 +646,12 @@ class CrosstabExecutor:
             {'Male': <polars.DataFrame>, 'Female': <polars.DataFrame>}
         """
         results = {}
-        for value in self.filter.value_indices.keys():
+        for value in self._filter.value_indices.keys():
             if aggfunc == "count":
-                results[value] = self.crosstab_count(value, alpha)
+                results[value] = self._crosstab_count(value, alpha)
             elif aggfunc == "percent":
-                results[value] = self.crosstab_percent(value, alpha, ndigits)
+                results[value] = self._crosstab_percent(value, alpha, ndigits)
             else:
-                results[value] = self.crosstab_number(value, aggfunc, alpha, ndigits)
+                results[value] = self._crosstab_number(value, aggfunc, alpha, ndigits)
 
         return results
