@@ -31,11 +31,24 @@ def test_survey_str(select_variable, multiselect_variable, number_variable):
     print("\n", survey)
 
 
+def test_survey_len(select_variable, multiselect_variable, number_variable):
+    survey = Survey(variables=[select_variable, multiselect_variable, number_variable])
+    assert len(survey) == 3
+
+
+def test_survey_iter(select_variable, multiselect_variable, number_variable):
+    survey = Survey(variables=[select_variable, multiselect_variable, number_variable])
+    assert survey.variables == [var for var in survey]
+
+
 def test_survey_get_variable(select_variable, multiselect_variable, number_variable):
     survey = Survey(variables=[select_variable, multiselect_variable, number_variable])
     assert survey["Q1"] == select_variable
+    assert survey[0] == select_variable
     assert survey["Q2"] == multiselect_variable
+    assert survey[1] == multiselect_variable
     assert survey["Q3"] == number_variable
+    assert survey[2] == number_variable
 
 
 def test_survey_get_variable_error(

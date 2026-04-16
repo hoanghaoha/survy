@@ -53,38 +53,67 @@ class Survey:
             lines.append(f"  {variable}")
         return "\n".join(lines)
 
-    def __getitem__(self, variable_id: str):
+    def __iter__(self):
         """
-        Retrieve a Variable by its ID.
+        Iterate over variables in the survey.
+
+        Yields:
+            Variable: Each variable in the survey, in order.
+
+        Notes:
+            This allows direct iteration over the survey instance:
+
+            >>> for var in survey:
+            ...     print(var.id)
+
+            Equivalent to iterating over ``survey.variables``.
+        """
+        for var in self.variables:
+            yield var
+
+    def __len__(self):
+        """
+        Return the number of variables in the survey.
+
+        Returns:
+            int: Total number of variables.
+
+        Examples:
+            >>> len(survey)
+            4
+        """
+        return len(self.variables)
+
+    def __getitem__(self, key: str | int):
+        """
+        Retrieve a variable by index or ID.
 
         Args:
-            variable_id (str): The ID of the variable to retrieve.
+            key (str | int):
+                - If ``int``: positional index of the variable.
+                - If ``str``: ID of the variable.
 
         Returns:
             Variable: The matching Variable object.
 
         Raises:
-            KeyError: If the variable ID does not exist.
+            KeyError: If a string ID is provided and no variable matches.
+            IndexError: If an integer index is out of range.
 
         Examples:
-            >>> df = polars.DataFrame(
-                {
-                    "gender": ["Male", "Female", "Male"],
-                    "yob": [2000, 1999, 1998],
-                    "hobby": ["Sport;Book", "Sport;Movie", "Movie"],
-                    "animal_1": ["Cat", "", "Cat"],
-                    "animal_2": ["Dog", "Dog", ""],
-                }
-            )
+            >>> survey[0]
+            Variable(...)
 
-            >>> survey = read_polars(df, auto_detect=True)
             >>> survey["gender"]
             Variable(id=gender, label=gender, value_indices={'Female': 1, 'Male': 2}, base=3)
         """
+        if isinstance(key, int):
+            return self.variables[key]
+
         for var in self.variables:
-            if var.id == variable_id:
+            if var.id == key:
                 return var
-        raise KeyError(f"Variable not found: {variable_id}")
+        raise KeyError(f"Variable not found: {key}")
 
     def add(self, variable: Variable | polars.Series):
         """
