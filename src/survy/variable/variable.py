@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Any, Literal
 import warnings
 
 import polars
@@ -47,6 +47,52 @@ class Variable:
         Variable(id=gender, label=gender, value_indices={'Male': 1, 'Female': 2}, base=3)"
         """
         return f"Variable(id={self.id}, label={self.label}, value_indices={self.value_indices}, base={self.base})"
+
+    def __iter__(self):
+        """
+        Iterate over raw values in the variable.
+
+        Yields:
+            Any: Each value in the underlying series.
+
+        Examples:
+            >>> for v in variable:
+            ...     print(v)
+        """
+        return iter(self.series)
+
+    def __getitem__(self, key: int | slice | Any) -> Any:
+        """
+        Retrieve one or more values from the variable.
+
+        Args:
+            key:
+                Index, slice, or boolean mask supported by ``polars.Series``.
+
+        Returns:
+            Any: A single value or a subset of the series.
+
+        Examples:
+            >>> variable[0]
+            'Male'
+
+            >>> variable[1:3]
+            shape: (2,)
+        """
+        return self.series[key]
+
+    def __len__(self) -> int:
+        """
+        Return total number of responses (including missing values).
+
+        Returns:
+            int: Length of the underlying series.
+
+        Examples:
+            >>> len(variable)
+            100
+        """
+        return self.len
 
     @property
     def id(self) -> str:
