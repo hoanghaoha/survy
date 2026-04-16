@@ -44,9 +44,9 @@ class Variable:
         >>> gender = Variable(polars.Series("gender", ["Male", "Female", "Male"]))
 
         >>> print(gender)
-        Variable(id=gender, label=gender, value_indices={'Male': 1, 'Female': 2}, base=3)"
+        Variable(id=gender, base=3, label=gender, value_indices={'Male': 1, 'Female': 2})"
         """
-        return f"Variable(id={self.id}, label={self.label}, value_indices={self.value_indices}, base={self.base})"
+        return f"Variable(id={self.id}, base={self.base}, label={self.label}, value_indices={self.value_indices})"
 
     def __iter__(self):
         """

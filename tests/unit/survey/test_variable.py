@@ -21,7 +21,7 @@ def test_variable_str():
     q.label = "Question 1"
     assert (
         str(q)
-        == """Variable(id=Q1, label=Question 1, value_indices={'A': 1, 'B': 2}, base=2)"""
+        == """Variable(id=Q1, base=2, label=Question 1, value_indices={'A': 1, 'B': 2})"""
     )
 
     assert q.id == "Q1"
