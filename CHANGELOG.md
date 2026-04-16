@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## 0.2.4 - 2026-04-16
+
+### Added
+
+- **Iterable `Survey`** — `Survey` now supports `len()`, index/ID access (`survey[0]`, `survey["gender"]`), and `for var in survey:` iteration.
+- **Iterable `Variable`** — `Variable` now supports `len()`, index/slice access (`variable[0]`, `variable[1:3]`), and `for val in variable:` iteration.
+
+### Changed
+
+- **`Variable.__str__()` field order** — `base` is now the second field, immediately after `id`: `Variable(id=..., base=..., label=..., value_indices=...)`. Previously `base` appeared last.
+- **`VarType.MULTISELECT` value** — renamed from `"multi_select"` to `"multiselect"`. Code that compares `.vtype` against the string `"multi_select"` must be updated.
+
+### Fixed
+
+- **Naming conventions** — private attributes and internal classes now consistently use the `_` prefix:
+  - Strategy classes renamed: `_BaseStrategy`, `_SelectStrategy`, `_MultiSelectStrategy`, `_NumberStrategy`.
+  - Internal reader/executor classes renamed: `_PolarReader`, `_CrosstabExecutor`.
+  - Instance attributes on strategy classes changed to `_series` and `_value_indices`.
+  - Instance attributes on `_CrosstabExecutor` changed to `_column`, `_row`, `_filter`.
+  - Internal methods on `_CrosstabExecutor` changed to `_get_df`, `_crosstab_count`, `_crosstab_percent`, `_crosstab_number`.
+  - `_PolarReader` internal state fields changed to `_data` and `_type_map`.
+  - Local variable `id` (shadowing built-in) renamed to `col_name` in strategy methods.
+- **Error classes exported** — `BaseError`, `ParseError`, `FileTypeError`, `DataTypeError`, `DataStructureError`, and `VarTypeError` are now included in `__all__` and importable directly from `survy`.
+
+---
+
 ## [0.2.3] - 2026-04-12
 
 ### Added

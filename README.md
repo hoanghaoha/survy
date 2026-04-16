@@ -86,10 +86,10 @@ survey = survy.read_csv("data_compact.csv", auto_detect=True, compact_separator=
 
 print(survey)
 # Survey (4 variables)
-#   Variable(id=gender, label=gender, value_indices={'Female': 1, 'Male': 2}, base=3)
-#   Variable(id=yob, label=yob, value_indices={}, base=3)
-#   Variable(id=hobby, label=hobby, value_indices={'Book': 1, 'Movie': 2, 'Sport': 3}, base=3)
-#   Variable(id=animal, label=animal, value_indices={'Cat': 1, 'Dog': 2}, base=3)
+#   Variable(id=gender, base=3, label=gender, value_indices={'Female': 1, 'Male': 2})
+#   Variable(id=yob, base=3, label=yob, value_indices={})
+#   Variable(id=hobby, base=3, label=hobby, value_indices={'Book': 1, 'Movie': 2, 'Sport': 3})
+#   Variable(id=animal, base=3, label=animal, value_indices={'Cat': 1, 'Dog': 2})
 
 # Both formats produce the same result
 print(survey.get_df())
@@ -263,10 +263,10 @@ survey = survy.read_polars(df, auto_detect=True, compact_separator=";")
 ```python
 print(survey)
 # Survey (4 variables)
-#   Variable(id=gender, label=gender, value_indices={'Female': 1, 'Male': 2}, base=3)
-#   Variable(id=yob, label=yob, value_indices={}, base=3)
-#   Variable(id=hobby, label=hobby, value_indices={'Book': 1, 'Movie': 2, 'Sport': 3}, base=3)
-#   Variable(id=animal, label=animal, value_indices={'Cat': 1, 'Dog': 2}, base=3)
+#   Variable(id=gender, base=3, label=gender, value_indices={'Female': 1, 'Male': 2})
+#   Variable(id=yob, base=3, label=yob, value_indices={})
+#   Variable(id=hobby, base=3, label=hobby, value_indices={'Book': 1, 'Movie': 2, 'Sport': 3})
+#   Variable(id=animal, base=3, label=animal, value_indices={'Cat': 1, 'Dog': 2})
 ```
 
 #### Methods & Properties
@@ -285,6 +285,9 @@ print(survey)
 | `to_spss()` | Export to SPSS format (.sav + .sps) |
 | `.variables` | Collection of all variables |
 | `.sps` | Render SPSS syntax string |
+| `survey[i]` / `survey["id"]` | Access variable by index or ID |
+| `len(survey)` | Number of variables in the survey |
+| `for var in survey:` | Iterate over all variables |
 
 #### DataFrame Output Formats
 
@@ -339,10 +342,10 @@ survey.update(
 )
 print(survey)
 # Survey (4 variables)
-#   Variable(id=gender, label=Please indicate your gender., value_indices={'Female': 1, 'Male': 2}, base=3)
-#   Variable(id=yob, label=yob, value_indices={}, base=3)
-#   Variable(id=hobby, label=hobby, value_indices={'Sport': 1, 'Book': 2, 'Movie': 3}, base=3)
-#   Variable(id=animal, label=animal, value_indices={'Cat': 1, 'Dog': 2}, base=3)
+#   Variable(id=gender, base=3, label=Please indicate your gender., value_indices={'Female': 1, 'Male': 2})
+#   Variable(id=yob, base=3, label=yob, value_indices={})
+#   Variable(id=hobby, base=3, label=hobby, value_indices={'Sport': 1, 'Book': 2, 'Movie': 3})
+#   Variable(id=animal, base=3, label=animal, value_indices={'Cat': 1, 'Dog': 2})
 ```
 
 #### Adding, Dropping, Sorting, and Filtering
@@ -374,7 +377,7 @@ For multiselect variables, `filter()` keeps a row if **any** of its selected val
 ```python
 hobby = survey["hobby"]
 print(hobby)
-# Variable(id=hobby, label=hobby, value_indices={'Book': 1, 'Movie': 2, 'Sport': 3}, base=3)
+# Variable(id=hobby, base=3, label=hobby, value_indices={'Book': 1, 'Movie': 2, 'Sport': 3})
 ```
 
 #### Methods & Properties
@@ -388,12 +391,15 @@ print(hobby)
 | `.id` | Variable identifier (read/write) |
 | `.label` | Variable label string (read/write) |
 | `.value_indices` | Mapping of response values to numeric codes (read/write) |
-| `.vtype` | Variable type: `select`, `multi_select`, or `number` |
+| `.vtype` | Variable type: `select`, `multiselect`, or `number` |
 | `.base` | Count of valid (non-null) responses |
 | `.len` | Total number of responses |
 | `.dtype` | Underlying Polars data type |
 | `.frequencies` | DataFrame of counts and proportions per value |
 | `.sps` | SPSS syntax string for this variable |
+| `variable[i]` / `variable[s]` | Access value(s) by index or slice |
+| `len(variable)` | Total number of responses (same as `.len`) |
+| `for val in variable:` | Iterate over raw values |
 
 #### Variable DataFrame Formats
 
@@ -446,12 +452,12 @@ hobby.get_df("number")
 hobby.value_indices = {"Sport": 1, "Book": 2, "Movie": 3}
 hobby.label = "Please tell us your hobbies."
 print(hobby)
-# Variable(id=hobby, label=Please tell us your hobbies., value_indices={'Sport': 1, 'Book': 2, 'Movie': 3}, base=3)
+# Variable(id=hobby, base=3, label=Please tell us your hobbies., value_indices={'Sport': 1, 'Book': 2, 'Movie': 3})
 
 # Remap values — works for both SELECT and MULTISELECT
 hobby.replace({"Book": "Reading"})
 print(hobby)
-# Variable(id=hobby, label=Please tell us your hobbies., value_indices={'Movie': 1, 'Reading': 2, 'Sport': 3}, base=3)
+# Variable(id=hobby, base=3, label=Please tell us your hobbies., value_indices={'Movie': 1, 'Reading': 2, 'Sport': 3})
 ```
 
 > **Note:** The `value_indices` setter validates that your mapping covers every value present in the data. If any value is missing, it raises a `DataStructureError`.
