@@ -7,12 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.2.6] - 2026-05-06
+## [0.2.7] - 2026-05-06
 
 ### Fixed
 
 - **`Survey.to_database()` fact table `variable_id`** — the `variable_id` column in `fact_response` now stores the root question ID instead of the raw column name. Multi-select sub-columns (e.g. `hobby_1`, `hobby_2`) are split on the multiselect separator and the first part is kept, so all responses link back to the parent variable (`hobby`).
 - **`Survey.to_database()` null responses** — null values are now dropped from `fact_response` after unpivoting, preventing empty-response rows from polluting the fact table.
+
+---
+
+## [0.2.6] - 2026-05-06
+
+> **Broken release** — fix was not applied. Use 0.2.7.
 
 ---
 

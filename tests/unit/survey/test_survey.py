@@ -296,7 +296,7 @@ def test_to_database_writes_four_tables(survey_with_id):
         connection="sqlite:///test.db",
     )
     assert [name for name, *_ in calls] == [
-        "fact_responses",
+        "fact_response",
         "dim_respondent",
         "dim_variable",
         "dim_option",
@@ -323,10 +323,10 @@ def test_to_database_fact_responses_shape(survey_with_id):
         dim_respondent_variables=["id"],
         connection="sqlite:///test.db",
     )
-    df = tables["fact_responses"]
-    assert df.columns == ["id", "variable_id", "response_value"]
-    # 4 respondents × (Q1 + Q2_1 + Q2_2 + Q2_3 + Q3) = 4 × 5 = 20 rows
-    assert df.height == 20
+    df = tables["fact_response"]
+    assert df.columns == ["id", "variable_id", "response"]
+    # Q1(4) + Q2_1(2) + Q2_2(3) + Q2_3(2) + Q3(4) = 15 rows after drop_nulls
+    assert df.height == 15
 
 
 def test_to_database_dim_respondent_includes_id_variable(survey_with_id):
