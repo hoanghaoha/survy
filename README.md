@@ -618,7 +618,7 @@ Writes four tables to a relational database using an SQLAlchemy-compatible conne
 
 | Table | Contents |
 |-------|----------|
-| `fact_responses` | Unpivoted responses: `id_variable`, `variable_id`, `response_value` |
+| `fact_response` | Unpivoted responses: `id_variable`, `variable_id` (root question ID), `response` |
 | `dim_respondent` | Respondent-level attributes (selected columns) |
 | `dim_variable` | Variable metadata: `id`, `label`, `base` |
 | `dim_option` | Option metadata: `id`, `variable_id`, `label`, `index` |

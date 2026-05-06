@@ -3,6 +3,7 @@ from typing import Any, Iterable, Literal
 import warnings
 import polars
 
+from survy.separators import MULTISELECT
 from survy.variable.variable import Variable, VarType
 from survy.utils.spss import ctables
 
@@ -826,10 +827,15 @@ class Survey:
         connection: str,
         if_table_exists: Literal["replace", "append", "fail"] = "append",
     ):
-        fact_responses = self.get_df(
-            select_dtype="text", multiselect_dtype="text"
-        ).unpivot(
-            index=id_variable, variable_name="variable_id", value_name="response_value"
+        fact_response = (
+            self.get_df(select_dtype="text", multiselect_dtype="text")
+            .unpivot(
+                index=id_variable,
+                variable_name="variable_id",
+                value_name="response",
+            )
+            .with_columns(polars.col("variable_id").str.split(MULTISELECT).list.first())
+            .drop_nulls()
         )
 
         dim_respondent_variables = set(dim_respondent_variables)
@@ -861,8 +867,8 @@ class Survey:
             for value, index in var.value_indices.items()
         )
 
-        fact_responses.write_database(
-            "fact_responses", connection, if_table_exists=if_table_exists
+        fact_response.write_database(
+            "fact_response", connection, if_table_exists=if_table_exists
         )
         dim_respondent.write_database(
             "dim_respondent", connection, if_table_exists=if_table_exists
