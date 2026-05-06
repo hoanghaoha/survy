@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.5] - 2026-05-06
+
+### Added
+
+- **`Survey.to_database()`** — export survey data to a relational database via a connection string. Writes four tables: `fact_responses` (unpivoted responses), `dim_respondent` (respondent-level attributes), `dim_variable` (variable metadata), and `dim_option` (option labels and indices). Accepts any SQLAlchemy-compatible connection string and an `if_table_exists` parameter (`"replace"`, `"append"`, or `"fail"`).
+
+---
+
 ## 0.2.4 - 2026-04-16
 
 ### Added

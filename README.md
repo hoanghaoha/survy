@@ -283,6 +283,7 @@ print(survey)
 | `to_excel()` | Export to Excel (same structure as CSV) |
 | `to_json()` | Export to JSON |
 | `to_spss()` | Export to SPSS format (.sav + .sps) |
+| `to_database()` | Export to a relational database (4 tables) |
 | `.variables` | Collection of all variables |
 | `.sps` | Render SPSS syntax string |
 | `survey[i]` / `survey["id"]` | Access variable by index or ID |
@@ -609,6 +610,26 @@ print(survey.sps)
 # 2 'Male'.
 # VARIABLE LEVEL gender (NOMINAL).
 # ...
+```
+
+#### Database
+
+Writes four tables to a relational database using an SQLAlchemy-compatible connection string:
+
+| Table | Contents |
+|-------|----------|
+| `fact_responses` | Unpivoted responses: `id_variable`, `variable_id`, `response_value` |
+| `dim_respondent` | Respondent-level attributes (selected columns) |
+| `dim_variable` | Variable metadata: `id`, `label`, `base` |
+| `dim_option` | Option metadata: `id`, `variable_id`, `label`, `index` |
+
+```python
+survey.to_database(
+    id_variable="respondent_id",          # column to use as respondent key
+    dim_respondent_variables=["respondent_id", "gender", "yob"],  # columns for dim_respondent
+    connection="sqlite:///results.db",    # SQLAlchemy connection string
+    if_table_exists="replace",            # "replace", "append", or "fail"
+)
 ```
 
 #### JSON
