@@ -268,3 +268,113 @@ def test_to_csv(mock_to_csv):
     survey.to_csv("path", name="test", compact=True)
 
     mock_to_csv.assert_called_once()
+
+
+@pytest.fixture
+def survey_with_id(select_variable, multiselect_variable, number_variable):
+    id_var = Variable(series=polars.Series("id", [1, 2, 3, 4]))
+    return Survey(variables=[id_var, select_variable, multiselect_variable, number_variable])
+
+
+def _capture_write_database(survey, **kwargs):
+    captured = []
+
+    def _write(self, table_name, connection, **kw):
+        captured.append((table_name, self.clone(), connection, kw))
+
+    with patch.object(polars.DataFrame, "write_database", _write):
+        survey.to_database(**kwargs)
+
+    return {name: df for name, df, *_ in captured}, captured
+
+
+def test_to_database_writes_four_tables(survey_with_id):
+    _, calls = _capture_write_database(
+        survey_with_id,
+        id_variable="id",
+        dim_respondent_variables=["Q1"],
+        connection="sqlite:///test.db",
+    )
+    assert [name for name, *_ in calls] == [
+        "fact_responses",
+        "dim_respondent",
+        "dim_variable",
+        "dim_option",
+    ]
+
+
+def test_to_database_passes_connection_and_if_table_exists(survey_with_id):
+    _, calls = _capture_write_database(
+        survey_with_id,
+        id_variable="id",
+        dim_respondent_variables=["Q1"],
+        connection="sqlite:///test.db",
+        if_table_exists="replace",
+    )
+    for _, _df, conn, kw in calls:
+        assert conn == "sqlite:///test.db"
+        assert kw["if_table_exists"] == "replace"
+
+
+def test_to_database_fact_responses_shape(survey_with_id):
+    tables, _ = _capture_write_database(
+        survey_with_id,
+        id_variable="id",
+        dim_respondent_variables=["id"],
+        connection="sqlite:///test.db",
+    )
+    df = tables["fact_responses"]
+    assert df.columns == ["id", "variable_id", "response_value"]
+    # 4 respondents × (Q1 + Q2_1 + Q2_2 + Q2_3 + Q3) = 4 × 5 = 20 rows
+    assert df.height == 20
+
+
+def test_to_database_dim_respondent_includes_id_variable(survey_with_id):
+    tables, _ = _capture_write_database(
+        survey_with_id,
+        id_variable="id",
+        dim_respondent_variables=["Q1"],  # id not explicitly included
+        connection="sqlite:///test.db",
+    )
+    df = tables["dim_respondent"]
+    assert "id" in df.columns
+    assert "Q1" in df.columns
+    assert df.height == 4
+
+
+def test_to_database_dim_variable_rows(survey_with_id):
+    tables, _ = _capture_write_database(
+        survey_with_id,
+        id_variable="id",
+        dim_respondent_variables=["id"],
+        connection="sqlite:///test.db",
+    )
+    df = tables["dim_variable"]
+    assert df.columns == ["id", "label", "base"]
+    assert df["id"].to_list() == ["id", "Q1", "Q2", "Q3"]
+    assert df["base"].to_list() == [4, 4, 4, 4]
+
+
+def test_to_database_dim_option_rows(survey_with_id):
+    tables, _ = _capture_write_database(
+        survey_with_id,
+        id_variable="id",
+        dim_respondent_variables=["id"],
+        connection="sqlite:///test.db",
+    )
+    df = tables["dim_option"]
+    assert df.columns == ["id", "variable_id", "label", "index"]
+    # Q1: a,b,c (3) + Q2: x,y,z (3) + id and Q3 have no value_indices
+    assert df.height == 6
+    assert set(df["variable_id"].to_list()) == {"Q1", "Q2"}
+
+
+def test_to_database_dim_option_empty_when_no_value_indices():
+    number_only = Survey(variables=[Variable(series=polars.Series("n", [1, 2, 3]))])
+    tables, _ = _capture_write_database(
+        number_only,
+        id_variable="n",
+        dim_respondent_variables=["n"],
+        connection="sqlite:///test.db",
+    )
+    assert tables["dim_option"].is_empty()

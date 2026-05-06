@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Iterable, Literal
 import warnings
 import polars
 
@@ -818,3 +818,58 @@ class Survey:
         from survy.io.excel import to_excel
 
         to_excel(self, path, name, compact, compact_separator)
+
+    def to_database(
+        self,
+        id_variable: str,
+        dim_respondent_variables: Iterable,
+        connection: str,
+        if_table_exists: Literal["replace", "append", "fail"] = "append",
+    ):
+        fact_responses = self.get_df(
+            select_dtype="text", multiselect_dtype="text"
+        ).unpivot(
+            index=id_variable, variable_name="variable_id", value_name="response_value"
+        )
+
+        dim_respondent_variables = set(dim_respondent_variables)
+
+        if id_variable not in dim_respondent_variables:
+            dim_respondent_variables.add(id_variable)
+
+        dim_respondent = self.get_df(
+            select_dtype="text", multiselect_dtype="text"
+        ).select(dim_respondent_variables)
+
+        dim_variable = polars.DataFrame(
+            {
+                "id": var.id,
+                "label": var.label,
+                "base": var.base,
+            }
+            for var in self.variables
+        )
+
+        dim_option = polars.DataFrame(
+            {
+                "id": f"{var.id}_{index}",
+                "variable_id": var.id,
+                "label": value,
+                "index": index,
+            }
+            for var in self.variables
+            for value, index in var.value_indices.items()
+        )
+
+        fact_responses.write_database(
+            "fact_responses", connection, if_table_exists=if_table_exists
+        )
+        dim_respondent.write_database(
+            "dim_respondent", connection, if_table_exists=if_table_exists
+        )
+        dim_variable.write_database(
+            "dim_variable", connection, if_table_exists=if_table_exists
+        )
+        dim_option.write_database(
+            "dim_option", connection, if_table_exists=if_table_exists
+        )
