@@ -168,6 +168,7 @@ survy.read_csv       # CSV files
 survy.read_excel     # Excel files (.xlsx)
 survy.read_json      # survy-format JSON
 survy.read_polars    # Polars DataFrame already in memory
+survy.read_spss      # SPSS data (.sav)
 ```
 
 #### CSV / Excel
